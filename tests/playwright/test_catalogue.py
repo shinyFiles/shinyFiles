@@ -415,6 +415,9 @@ def filetypeChosen(page, d, row, fx):
 
 
 def permissionWarned(page, d, row, fx):
+    # chmod doesn't make a folder read-only on Windows, or for root.
+    if os.access(fx / "data" / "locked", os.W_OK):
+        pytest.skip("the locked folder is writable on this system")
     d.after_listing(lambda: d.dblclick_row("locked"))
     expect(d.find(".sF-warning")).to_contain_text("No write permission", timeout=3000)
     d.find("input.sF-filename").fill("x")

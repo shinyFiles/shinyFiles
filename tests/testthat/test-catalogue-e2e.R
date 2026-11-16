@@ -519,6 +519,9 @@ checks <- list(
 
   permissionWarned = function(app, row, dialog) {
     skip_if(Sys.info()[["effective_user"]] == "root", "root can write anywhere")
+    # chmod doesn't make a folder read-only on Windows; skip wherever it didn't.
+    skip_if(file.access(file.path(catBase, "data", "locked"), 2) == 0,
+            "the locked folder is writable on this system")
     markListing(app)
     run(app, "var el = m.find('.sF-fileList .sF-directory').filter(function(){ return $(this).text().indexOf('locked') !== -1; }); var e = $.Event('dblclick'); e.button = 0; el.trigger(e);")
     waitListing(app)
