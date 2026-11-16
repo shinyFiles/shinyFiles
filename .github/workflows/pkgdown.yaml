@@ -33,14 +33,7 @@ jobs:
           extra-packages: any::pkgdown, local::.
           needs: website
 
+      # Builds the site to check the documentation renders; it isn't published.
       - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        run: pkgdown::build_site(new_process = FALSE, install = FALSE, preview = FALSE)
         shell: Rscript {0}
-
-      - name: Deploy to GitHub pages 🚀
-        if: github.event_name != 'pull_request'
-        uses: JamesIves/github-pages-deploy-action@4.1.4
-        with:
-          clean: false
-          branch: gh-pages
-          folder: docs

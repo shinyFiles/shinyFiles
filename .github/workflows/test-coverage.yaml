@@ -34,5 +34,21 @@ jobs:
       - name: Test coverage
         env:
           CHROMOTE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
-        run: covr::codecov(quiet = FALSE, flags = "r")
+        run: |
+          cov <- covr::package_coverage(type = "tests", quiet = FALSE)
+          pct <- covr::percent_coverage(cov)
+          # zero_coverage() and print() add RStudio source markers unless this
+          # is off, which needs rstudioapi; it isn't installed here.
+          options(covr.rstudio_source_markers = FALSE)
+          d <- covr::tally_coverage(cov, by = "line")
+          print(aggregate(list(coverage = d$value), list(file = d$filename),
+                          function(v) round(100 * mean(v > 0), 1)), row.names = FALSE)
+          zero <- covr::zero_coverage(cov)
+          if (nrow(zero) > 0) {
+            cat("\nUncovered lines:\n")
+            print(zero[, c("filename", "functions", "line")], row.names = FALSE)
+          }
+          cat(sprintf("\nR line coverage: %.1f%%\n", pct))
+          cat(sprintf("### R line coverage: %.1f%%\n", pct),
+              file = Sys.getenv("GITHUB_STEP_SUMMARY"), append = TRUE)
         shell: Rscript {0}
