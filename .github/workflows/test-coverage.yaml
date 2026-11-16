@@ -37,7 +37,10 @@ jobs:
         run: |
           cov <- covr::package_coverage(type = "tests", quiet = FALSE)
           pct <- covr::percent_coverage(cov)
-          print(cov)
+          # Per-file figures. (print(cov) would need rstudioapi for its markers.)
+          d <- covr::tally_coverage(cov, by = "line")
+          print(aggregate(list(coverage = d$value), list(file = d$filename),
+                          function(v) round(100 * mean(v > 0), 1)), row.names = FALSE)
           zero <- covr::zero_coverage(cov)
           if (nrow(zero) > 0) {
             cat("\nUncovered lines:\n")
