@@ -4,6 +4,9 @@
   with a plain name, directly inside the folder being shown and within its
   root. Names containing a path separator or `..`, existing names, and folders
   outside the root are refused.
+* `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
+  locations inside the root they name. A selection that resolves outside it, or
+  names an unknown root, is treated as nothing chosen.
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

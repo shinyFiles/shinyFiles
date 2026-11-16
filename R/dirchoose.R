@@ -608,9 +608,7 @@ parseDirPath <- function(roots, selection) {
 
   if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
 
-  if (is.integer(selection)) {
-    character(0)
-  } else {
-    path(currentRoots[selection$root], paste0(selection$path, collapse = "/"))
-  }
+  if (is.integer(selection)) return(character(0))
+  location <- selectionPath(currentRoots, selection$root, selection$path)
+  if (is.null(location)) character(0) else location
 }

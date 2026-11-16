@@ -240,8 +240,11 @@ parseSavePath <- function(roots, selection) {
   if (all(is.integer(selection))) {
     tibble(name = character(0), type = character(0), datapath = character(0))
   } else {
-    root <- currentRoots[selection$root]
-    savefile <- path(root, paste0(c(selection$path, selection$name), collapse = "/"))
+    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name))
+    # The file goes into a folder within the root, so the name is a plain name.
+    if (is.null(savefile) || grepl("[/\\\\]", paste(unlist(selection$name), collapse = ""))) {
+      return(tibble(name = character(0), type = character(0), datapath = character(0)))
+    }
     type <- selection$type
     type <- if (length(type) == 0) "" else unlist(type)
     tibble(name = path_file(savefile), type = type, datapath = savefile)

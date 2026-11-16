@@ -93,3 +93,33 @@ test_that("parseSavePath builds the path from root, folder and name", {
   z <- parseSavePath(function() roots, list(name = "out", path = list(""), root = "first"))
   expect_equal(z$type, "")
 })
+
+# A selection names a location inside a root. One that resolves outside it is
+# treated as nothing chosen, so an app never gets a path it didn't offer.
+test_that("a selection outside its root counts as nothing chosen", {
+  fs::dir_create(fs::path(dirname(roots[["first"]]), "beside"))
+  out <- list("", "..", "beside")
+  expect_equal(nrow(parseFilePaths(roots, list(files = list("0" = c(out, "f.txt")), root = "first"))), 0)
+  expect_equal(parseDirPath(roots, list(path = out, root = "first")), character(0))
+  expect_equal(nrow(parseSavePath(roots, list(name = "f.txt", path = out, root = "first"))), 0)
+  # A name can't step out either.
+  expect_equal(nrow(parseSavePath(roots, list(name = "../f.txt", path = list(""), root = "first"))), 0)
+  # An unknown root is nothing chosen, not a path under NA.
+  expect_equal(parseDirPath(roots, list(path = list(""), root = "nope")), character(0))
+  expect_equal(nrow(parseFilePaths(roots, list(files = list("0" = list("", "one.txt")), root = "nope"))), 0)
+})
+
+test_that("only the files inside the root are kept from a mixed selection", {
+  x <- parseFilePaths(roots, list(
+    files = list("0" = list("", "one.txt"), "1" = list("", "..", "b", "x.txt")),
+    root = "first"
+  ))
+  expect_equal(x$name, "one.txt")
+})
+
+test_that("a selection may move around inside the root", {
+  x <- parseDirPath(roots, list(path = list("", "sub", "..", "sub"), root = "first"))
+  expect_equal(as.character(x), file.path(roots[["first"]], "sub"))
+  y <- parseSavePath(roots, list(name = "new.txt", path = list("", "sub", ".."), root = "first"))
+  expect_equal(as.character(y$datapath), file.path(roots[["first"]], "new.txt"))
+})
