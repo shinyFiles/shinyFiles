@@ -1877,17 +1877,24 @@ var shinyFiles = (function () {
           $('<span>', { id: 'filenameWarn' }).addClass('glyphicon glyphicon-warning-sign form-control-feedback')
         )
       }
-      modal.find('#sF-selectButton').text('Overwrite')
-        .toggleClass('btn-primary', false)
-        .toggleClass('btn-warning', true)
+      setSaveLabel(modal, 'Overwrite');
     } else {
       parent.toggleClass('has-feedback', false)
         .toggleClass('has-warning', false);
       parent.find('#filenameWarn').remove()
-      modal.find('#sF-selectButton').text('Save')
-        .toggleClass('btn-primary', true)
-        .toggleClass('btn-warning', false)
+      setSaveLabel(modal, 'Save');
     }
+  }
+
+  // This runs on every change, including the focus change when the user
+  // presses the Save button. Rewriting the label then replaces the button's
+  // text node between mousedown and mouseup, and WebKit (Safari) drops the
+  // click, so only touch it when the label really changes.
+  var setSaveLabel = function (modal, label) {
+    var btn = modal.find('#sF-selectButton');
+    if (btn.text() !== label) btn.text(label);
+    btn.toggleClass('btn-primary', label === 'Save')
+      .toggleClass('btn-warning', label !== 'Save');
   }
 
   var nameExist = function (modal, name) {

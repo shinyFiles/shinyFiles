@@ -31,6 +31,10 @@
 * With `allowDirCreate = FALSE`, the "Create new folder" button in the folder
   and save dialogs is grayed out. It used to be clickable and only fail with an
   error notification. The server still refuses such a request.
+* In Safari, clicking Save in the save dialog after typing a filename did
+  nothing. The Save button's label was rewritten while the button was being
+  pressed, and Safari drops a click whose target changes mid-press; the label
+  is now only updated when it actually changes.
 
 # shinyFiles 0.9.4
 
