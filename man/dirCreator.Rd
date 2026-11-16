@@ -20,8 +20,12 @@ by the client.
 \description{
 This function returns a function that can be used to create new directories
 based on the information returned from the client. The returned function
-takes the name, path and root of the directory to create and parses it into
-a platform compliant format and then uses dir.create to create it. The
-returned function returns TRUE if the directory was created successfully and
-FALSE otherwise.
+takes the name, path and root of the directory to create, and creates it
+inside \code{path} within that root. The returned function returns TRUE if the
+directory was created and FALSE otherwise.
+}
+\details{
+The request comes from the browser, so it is checked before anything is
+created: \code{name} must be a single folder name, and the folder it goes into
+must exist and lie within the root once symlinks are resolved.
 }

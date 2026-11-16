@@ -1,5 +1,9 @@
 # shinyFiles (development version)
 
+* "Create new folder" in the folder and save dialogs now only creates a folder
+  with a plain name, directly inside the folder being shown and within its
+  root. Names containing a path separator or `..`, existing names, and folders
+  outside the root are refused.
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

@@ -284,10 +284,13 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
 #'
 #' This function returns a function that can be used to create new directories
 #' based on the information returned from the client. The returned function
-#' takes the name, path and root of the directory to create and parses it into
-#' a platform compliant format and then uses dir.create to create it. The
-#' returned function returns TRUE if the directory was created successfully and
-#' FALSE otherwise.
+#' takes the name, path and root of the directory to create, and creates it
+#' inside `path` within that root. The returned function returns TRUE if the
+#' directory was created and FALSE otherwise.
+#'
+#' The request comes from the browser, so it is checked before anything is
+#' created: `name` must be a single folder name, and the folder it goes into
+#' must exist and lie within the root once symlinks are resolved.
 #'
 #' @param roots A named vector of absolute filepaths or a function returning a
 #' named vector of absolute filepaths (the latter is useful if the volumes
@@ -298,14 +301,26 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
 #' @return A function that creates directories based on the information returned
 #' by the client.
 #'
-#' @importFrom fs path dir_create
+#' @importFrom fs path dir_create path_real dir_exists file_exists
 #'
 dirCreator <- function(roots, ...) {
   function(name, path, root) {
     currentRoots <- if (inherits(roots, "function")) roots() else roots
     if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
-    location <- fs::path(currentRoots[root], paste0(c(path, name), collapse = "/"))
-    dir_create(location)
+    if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(FALSE)
+    if (!is.character(name) || length(name) != 1 || is.na(name)) return(FALSE)
+    name <- trimws(name)
+    if (!nzchar(name) || name %in% c(".", "..") || grepl("[/\\]", name)) return(FALSE)
+
+    rootPath <- try(path_real(currentRoots[[root]]), silent = TRUE)
+    parent <- try(path_real(path(currentRoots[[root]], paste0(unlist(path), collapse = "/"))), silent = TRUE)
+    if (inherits(rootPath, "try-error") || inherits(parent, "try-error")) return(FALSE)
+    if (!dir_exists(parent) || !pathWithin(parent, rootPath)) return(FALSE)
+
+    location <- path(parent, name)
+    if (file_exists(location)) return(FALSE)
+    created <- try(dir_create(location), silent = TRUE)
+    !inherits(created, "try-error")
   }
 }
 #' Build an expanded tree along a path
