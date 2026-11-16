@@ -9,6 +9,8 @@
 stage <- commandArgs(trailingOnly = TRUE)[[1]]
 
 if (stage == "coverage") {
+  # zero_coverage() would otherwise try to add RStudio source markers.
+  options(covr.rstudio_source_markers = FALSE)
   cov <- covr::package_coverage(".", type = "tests", quiet = TRUE)
   pct <- covr::percent_coverage(cov)
   cat(sprintf("R line coverage: %.1f%%\n", pct))

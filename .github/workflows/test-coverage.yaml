@@ -37,7 +37,9 @@ jobs:
         run: |
           cov <- covr::package_coverage(type = "tests", quiet = FALSE)
           pct <- covr::percent_coverage(cov)
-          # Per-file figures. (print(cov) would need rstudioapi for its markers.)
+          # zero_coverage() and print() add RStudio source markers unless this
+          # is off, which needs rstudioapi; it isn't installed here.
+          options(covr.rstudio_source_markers = FALSE)
           d <- covr::tally_coverage(cov, by = "line")
           print(aggregate(list(coverage = d$value), list(file = d$filename),
                           function(v) round(100 * mean(v > 0), 1)), row.names = FALSE)
