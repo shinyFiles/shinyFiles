@@ -393,6 +393,38 @@ emptyPaths <- function(sent) {
 
 withProbe <- function(roots, body, ...) {
   args <- list(...)
+  probeEnv <- environment()
+  # The background check runs on later() timers, and testServer's setInputs()
+  # itself calls later::run_now(): on a slow machine 10 ms pass inside it and
+  # the check runs before the test looks. Queue its callbacks here instead, so
+  # they only run when the test calls drainLater().
+  held <- list()
+  local_mocked_bindings(
+    later = function(func, delay = 0, ...) {
+      held[[length(held) + 1]] <<- func
+      invisible(function() FALSE)
+    },
+    .package = "later", .env = probeEnv
+  )
+  runNext <- function() {
+    if (length(held) == 0) return(invisible(FALSE))
+    f <- held[[1]]
+    held <<- held[-1]
+    f()
+    invisible(TRUE)
+  }
+  # Runs queued callbacks until one does some work (queues the next slice),
+  # i.e. one slice of the current check. Callbacks from superseded runs return
+  # at once and are skipped over.
+  step <- function() {
+    while (length(held) > 0) {
+      before <- length(held)
+      runNext()
+      if (length(held) >= before) return(invisible(TRUE))
+    }
+    invisible(FALSE)
+  }
+  drainLater <- function() while (runNext()) NULL
   server <- function(input, output, session) {
     do.call(shinyDirChoose, c(list(input, "dir", roots = roots, session = session), args))
   }
@@ -405,6 +437,8 @@ withProbe <- function(roots, body, ...) {
       session$setInputs(dir = 1)
       session$setInputs(`dir-modal` = list(tree = tree, selectedRoot = root))
     }
+    step <- step
+    drainLater <- drainLater
     body(environment())
   })
 }
@@ -424,7 +458,7 @@ test_that("the tree is sent before any collapsed folder is listed", {
     e$open()
     expect_equal(e$sent[[length(e$sent)]]$type, "shinyDirectories")
     expect_false(any(c("one", "two", "three") %in% listed))
-    drainLater()
+    e$drainLater()
     expect_true(all(c("one", "two", "three") %in% listed))
   })
 })
@@ -435,7 +469,7 @@ test_that("only folders with no subfolders are reported empty", {
   fs::file_create(fs::path(base, "three", "onlyAFile.txt"))
   withProbe(c(r = base), function(e) {
     e$open()
-    drainLater()
+    e$drainLater()
     expect_equal(sort(emptyPaths(e$sent)), "three")
   })
 })
@@ -446,7 +480,7 @@ test_that("empty folders deep in an expanded branch are found with their full pa
     e$open(list(name = "", expanded = TRUE, children = list(
       list(name = "one", expanded = TRUE, children = list())
     )))
-    drainLater()
+    e$drainLater()
     expect_setequal(emptyPaths(e$sent), c("one/a", "one/b", "three"))
   })
 })
@@ -455,7 +489,7 @@ test_that("the report names the root it is about", {
   base <- makeTree()
   withProbe(c(r = base), function(e) {
     e$open()
-    drainLater()
+    e$drainLater()
     roots <- vapply(emptyMessages(e$sent), function(m) m$message$root, character(1))
     expect_true(length(roots) > 0)
     expect_true(all(roots == "r"))
@@ -466,7 +500,7 @@ test_that("once the check has run, the next response already knows which are emp
   base <- makeTree()
   withProbe(c(r = base), function(e) {
     e$open()
-    drainLater()
+    e$drainLater()
     tree <- e$sent[[1]]$message$dir$tree
     tree$children <- lapply(tree$children, function(ch) { ch$empty <- FALSE; ch })
     e$session$setInputs(`dir-modal` = list(tree = tree, selectedRoot = "r", contentPath = list("", "one")))
@@ -481,7 +515,7 @@ test_that("nothing already known is listed again by a later check", {
   base <- makeTree()
   withProbe(c(r = base), function(e) {
     e$open()
-    drainLater()
+    e$drainLater()
     before <- length(emptyMessages(e$sent))
     listed <- character(0)
     realDirLs <- fs::dir_ls
@@ -494,7 +528,7 @@ test_that("nothing already known is listed again by a later check", {
     )
     tree <- e$sent[[1]]$message$dir$tree
     e$session$setInputs(`dir-modal` = list(tree = tree, selectedRoot = "r", contentPath = list("", "two")))
-    drainLater()
+    e$drainLater()
     expect_false(any(c("one", "three") %in% listed))
     expect_equal(length(emptyMessages(e$sent)), before)
   })
@@ -506,12 +540,12 @@ test_that("a newer response supersedes a check still in progress", {
   base <- as.character(fs::path_real(base))
   withProbe(c(r = base), function(e) {
     e$open()
-    later::run_now(0.05, all = FALSE)
+    e$step()
     # Collapse the root: the new response has nothing collapsed to check, so
     # if the old run were still going it would be the only source of reports.
     e$session$setInputs(`dir-modal` = list(tree = list(name = "", expanded = FALSE), selectedRoot = "r"))
     n <- length(emptyPaths(e$sent))
-    drainLater()
+    e$drainLater()
     expect_equal(length(emptyPaths(e$sent)), n)
     expect_lt(n, 2000)
   })
@@ -523,11 +557,11 @@ test_that("the check works in slices rather than one long block", {
   base <- as.character(fs::path_real(base))
   withProbe(c(r = base), function(e) {
     e$open()
-    later::run_now(0.05, all = FALSE)
+    e$step()
     first <- length(emptyPaths(e$sent))
     expect_gt(first, 0)
     expect_lt(first, 2000)
-    drainLater()
+    e$drainLater()
     expect_length(emptyPaths(e$sent), 2000)
   })
 })
@@ -538,10 +572,10 @@ test_that("the check stops when the session ends", {
   base <- as.character(fs::path_real(base))
   withProbe(c(r = base), function(e) {
     e$open()
-    later::run_now(0.05, all = FALSE)
+    e$step()
     n <- length(emptyPaths(e$sent))
     e$session$close()
-    drainLater()
+    e$drainLater()
     expect_equal(length(emptyPaths(e$sent)), n)
   })
 })
@@ -550,7 +584,7 @@ test_that("restricted folders are neither probed nor reported", {
   base <- makeTree()
   withProbe(c(r = base), restrictions = fs::path(base, "three"), function(e) {
     e$open()
-    drainLater()
+    e$drainLater()
     expect_false("three" %in% emptyPaths(e$sent))
   })
 })
@@ -560,7 +594,7 @@ test_that("a folder deleted before the check reaches it is not reported", {
   withProbe(c(r = base), function(e) {
     e$open()
     fs::dir_delete(fs::path(base, "three"))
-    drainLater()
+    e$drainLater()
     expect_false("three" %in% emptyPaths(e$sent))
   })
 })
@@ -577,7 +611,7 @@ test_that("the check does not call an expensive roots function again", {
   withProbe(roots, function(e) {
     e$open(root = "r")
     before <- calls
-    drainLater()
+    e$drainLater()
     expect_equal(calls - before, 0)
     expect_length(emptyPaths(e$sent), 20)
   })
