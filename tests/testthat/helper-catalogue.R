@@ -4,7 +4,8 @@
 catalogueTree <- function() {
   base <- tempfile("sf-catalogue")
   dir.create(base)
-  base <- normalizePath(base)
+  # Forward slashes on Windows too, matching the paths the parsers return.
+  base <- normalizePath(base, winslash = "/")
   dir.create(file.path(base, "data", "folder", "sub"), recursive = TRUE)
   dir.create(file.path(base, "data", "empty"))
   dir.create(file.path(base, "data", "locked"))
