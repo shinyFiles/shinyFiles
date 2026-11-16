@@ -49,4 +49,4 @@ be removed.
 
 On Chromium, `conftest.py` collects V8 coverage for `shinyFiles.js` from every
 test and writes `coverage/lcov.info` and `coverage/summary.txt` when the run
-ends. CI uploads it to Codecov under the `js` flag.
+ends. CI prints the figure in the Chromium job and its run summary.

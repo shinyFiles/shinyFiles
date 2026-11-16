@@ -7,7 +7,6 @@ build/
 ^cran-comments\.md$
 ^revdep$
 shinyFiles.code-workspace
-^codecov\.yml$
 ^\.github$
 ^CRAN-SUBMISSION$
 ^bench$

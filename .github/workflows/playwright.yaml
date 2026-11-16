@@ -49,10 +49,8 @@ jobs:
           path: tests/playwright/test-results/
 
       # JS coverage is collected on Chromium only (through the DevTools protocol).
-      - uses: codecov/codecov-action@v5
+      - name: shinyFiles.js coverage
         if: matrix.browser == 'chromium'
-        with:
-          files: tests/playwright/coverage/lcov.info
-          flags: js
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+        run: |
+          cat coverage/summary.txt
+          echo "### $(cat coverage/summary.txt)" >> "$GITHUB_STEP_SUMMARY"

@@ -70,6 +70,10 @@ process a shinytest2 test starts: that process is killed rather than exiting,
 so its trace is lost. The browser tests are therefore there for the
 JavaScript, and `shinyFiles.js` coverage comes from Playwright's Chromium run.
 
+In CI, the test-coverage workflow prints the R figure and any uncovered lines,
+and the Playwright workflow's Chromium job prints the JS figure. Both also
+appear in each run's summary page.
+
 ## Test files
 
 ### R: unit and server (`testthat/`)

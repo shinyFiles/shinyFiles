@@ -34,6 +34,16 @@ jobs:
       - name: Test coverage
         env:
           CHROMOTE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: covr::codecov(quiet = FALSE, flags = "r", token = Sys.getenv("CODECOV_TOKEN"))
+        run: |
+          cov <- covr::package_coverage(type = "tests", quiet = FALSE)
+          pct <- covr::percent_coverage(cov)
+          print(cov)
+          zero <- covr::zero_coverage(cov)
+          if (nrow(zero) > 0) {
+            cat("\nUncovered lines:\n")
+            print(zero[, c("filename", "functions", "line")], row.names = FALSE)
+          }
+          cat(sprintf("\nR line coverage: %.1f%%\n", pct))
+          cat(sprintf("### R line coverage: %.1f%%\n", pct),
+              file = Sys.getenv("GITHUB_STEP_SUMMARY"), append = TRUE)
         shell: Rscript {0}
