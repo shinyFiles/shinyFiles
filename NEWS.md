@@ -1,3 +1,10 @@
+# shinyFiles (development version)
+
+* In Safari, clicking Save in the save dialog after typing a filename did
+  nothing. The Save button's label was rewritten while the button was being
+  pressed, and Safari drops a click whose target changes mid-press; the label
+  is now only updated when it actually changes.
+
 # shinyFiles 0.9.4
 
 This release passes maintenance of the package to Michael Bell

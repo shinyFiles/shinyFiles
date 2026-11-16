@@ -36,6 +36,9 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="session")
 def fixture_dir():
+    if os.environ.get("SF_FIXTURE_DIR"):
+        yield Path(os.environ["SF_FIXTURE_DIR"])
+        return
     d = Path(tempfile.mkdtemp(prefix="sf-pw-"))
     yield d / "tree"
     # The locked folder is read-only; make it removable again.
@@ -47,6 +50,13 @@ def fixture_dir():
 
 @pytest.fixture(scope="session")
 def app_url(fixture_dir):
+    # Use an app someone else started, e.g. when the browsers run in a
+    # container without R: SF_APP_URL is its address and SF_FIXTURE_DIR the
+    # file tree it serves.
+    external = os.environ.get("SF_APP_URL")
+    if external:
+        yield external
+        return
     port = _free_port()
     log = open(fixture_dir.parent / "app.log", "w")
     proc = subprocess.Popen(

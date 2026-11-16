@@ -120,3 +120,24 @@ def test_every_file_row_carries_its_metadata(app: Page):
     assert by_name["a.txt"]["ext"] == "txt"
     assert by_name["c.R"]["ext"] == "r"
     assert all(x["hasTimes"] and not x["isDir"] for x in info)
+
+
+def test_clicking_save_is_not_cancelled_by_relabelling_the_button(app: Page):
+    # Moving focus from the filename box to Save re-evaluates the filename on
+    # mousedown. If that replaces the button's text node, WebKit (Safari) drops
+    # the click. The label may only be rewritten when it actually changes.
+    d = Dialog(app, "save").open()
+    d.find("input.sF-filename").fill("newname")
+    replaced = app.evaluate("""() => new Promise(function(resolve) {
+      var btn = $('#save').data('modal').find('#sF-selectButton')[0];
+      var changed = false;
+      new MutationObserver(function(){ changed = true; }).observe(btn, {childList: true, characterData: true, subtree: true});
+      // What a mousedown on Save does first: the filename box loses focus.
+      btn.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+      $('#save').data('modal').find('.sF-filename').trigger('blur');
+      $('#save').data('modal').trigger('change');
+      setTimeout(function(){ resolve(changed); }, 50);
+    })""")
+    assert not replaced, "the Save button's label was rewritten without changing"
+    d.find("#sF-selectButton").click()
+    d.expect_closed()
