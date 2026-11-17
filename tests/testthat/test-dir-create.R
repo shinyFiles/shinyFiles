@@ -101,3 +101,13 @@ test_that("a created folder shows no notification", {
     })
   }
 })
+
+test_that("the folder tree can't start above its root", {
+  g <- dirGetter(roots = c(r = mkRoot))
+  for (name in c("..", "../..", "sub/../..", "/")) {
+    x <- g(list(name = name, expanded = TRUE), "r")
+    expect_equal(x$tree$name, if (name == "/") "/" else "", label = name)
+    expect_true("sub" %in% vapply(x$tree$children, `[[`, "", "name"), label = name)
+  }
+  expect_equal(g(list(name = "sub", expanded = TRUE), "r")$tree$name, "sub")
+})

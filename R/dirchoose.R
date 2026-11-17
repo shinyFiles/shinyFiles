@@ -213,6 +213,8 @@ updateChildren <- function(oldChildren, currentChildren) {
 #' See [traverseDirs()] for a description of the format for the list
 #' representation.
 #'
+#' @importFrom fs path path_norm
+#'
 dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
   if (missing(filetypes)) filetypes <- NULL
   if (missing(restrictions)) restrictions <- NULL
@@ -222,6 +224,10 @@ dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
 
     if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
     if (is.null(root)) root <- names(currentRoots)[1]
+
+    # The tree comes from the browser; its top folder must be within the root.
+    top <- path_norm(path(currentRoots[[root]], if (is.null(tree$name)) "" else tree$name))
+    if (!pathWithin(top, path_norm(currentRoots[[root]]))) tree$name <- ""
 
     tree <- traverseDirs(tree, currentRoots[root], restrictions, hidden, cache)
     
