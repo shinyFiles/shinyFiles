@@ -54,6 +54,14 @@ windowsVolumesPowershell <- function() {
     system2("powershell", c("-NoProfile", "-Command", shQuote(command, type = "cmd")), stdout = TRUE),
     error = function(e) character(0)
   ))
+  parsePowershellDrives(out)
+}
+
+#' Turn "name|label" lines from PowerShell into getVolumes() output
+#'
+#' @noRd
+#'
+parsePowershellDrives <- function(out) {
   out <- grep("|", sub("\\r$", "", out), fixed = TRUE, value = TRUE)
   if (length(out) == 0) return(NULL)
   drive <- sub("\\|.*$", "", out)
