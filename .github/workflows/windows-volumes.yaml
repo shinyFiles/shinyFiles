@@ -1,0 +1,118 @@
+# Checks getVolumes() against real Windows drives: a labelled fixed disk, a
+# subst drive, a mapped network drive that is then disconnected (#171, #200),
+# and a WMIC that fails (#193). Runs when that code changes, or from the
+# Actions tab.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['R/aaa.R', 'tests/testthat/test-getvolumes.R', '.github/workflows/windows-volumes.yaml']
+  pull_request:
+    branches: [main, master]
+    paths: ['R/aaa.R', 'tests/testthat/test-getvolumes.R', '.github/workflows/windows-volumes.yaml']
+
+name: windows-volumes
+
+jobs:
+  windows-volumes:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgload, any::testthat
+
+      - name: Make drives to find
+        shell: pwsh
+        run: |
+          # A labelled disk: a small VHD formatted with a label.
+          $vhd = "$env:RUNNER_TEMP\sf-test.vhdx"
+          "create vdisk file=`"$vhd`" maximum=64 type=expandable`nattach vdisk`ncreate partition primary`nformat fs=ntfs label=SFLABEL quick`nassign letter=V" | Set-Content "$env:RUNNER_TEMP\vhd.txt"
+          diskpart /s "$env:RUNNER_TEMP\vhd.txt"
+          # A drive with no label of its own: subst of a folder.
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\substme" | Out-Null
+          subst S: "$env:RUNNER_TEMP\substme"
+          # A network drive, then take the share away so the mapping stays but
+          # the drive is not ready, as with a laptop away from the office.
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\share" | Out-Null
+          New-SmbShare -Name sfshare -Path "$env:RUNNER_TEMP\share" -FullAccess Everyone | Out-Null
+          net use N: \\localhost\sfshare /persistent:no
+          net use N: /delete /y | Out-Null
+          net use N: \\localhost\sfshare /persistent:yes
+          Remove-SmbShare -Name sfshare -Force
+          Get-PSDrive -PSProvider FileSystem | Format-Table Name, Root, Description
+          [System.IO.DriveInfo]::GetDrives() | Format-Table Name, IsReady, DriveType, VolumeLabel
+          net use
+
+      - name: Check getVolumes()
+        shell: Rscript {0}
+        run: |
+          pkgload::load_all(".", export_all = TRUE, quiet = TRUE)
+          library(testthat)
+          ps <- system2("powershell", c("-NoProfile", "-Command",
+            shQuote("[System.IO.DriveInfo]::GetDrives() | ForEach-Object { $_.Name + '|' + $_.IsReady + '|' + $(if ($_.IsReady) { $_.VolumeLabel } else { '' }) }", type = "cmd")),
+            stdout = TRUE)
+          cat("Windows reports:\n", paste0("  ", ps, "\n"), sep = "")
+          truth <- do.call(rbind, strsplit(sub("\r$", "", ps), "|", fixed = TRUE))
+          truth <- data.frame(drive = sub("\\\\$", "/", truth[, 1]), ready = truth[, 2] == "True",
+                              label = if (ncol(truth) > 2) truth[, 3] else "")
+          expected <- setNames(truth$drive, paste0(ifelse(truth$label == "", "", paste0(truth$label, " ")),
+                                                  "(", sub("/$", "", truth$drive), ")"))
+          show <- function(what, v) cat(what, ":\n", paste0("  ", unname(v), "  ", names(v), "\n"), sep = "")
+
+          started <- Sys.time()
+          live <- getVolumes()()
+          secs <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+          show(sprintf("getVolumes() (%.1fs)", secs), live)
+          show("PowerShell alone", windowsVolumesPowershell())
+          wmic <- windowsVolumesWmic()
+          if (is.null(wmic)) cat("WMIC: missing or failed\n") else show("WMIC alone", wmic)
+
+          test_that("the drives made above are all found, with the right names", {
+            for (d in c("V:/", "S:/", "N:/")) expect_true(d %in% live, label = d)
+            expect_equal(names(live)[live == "V:/"], "SFLABEL (V:)")
+            expect_true(isFALSE(truth$ready[truth$drive == "N:/"]), label = "N: is disconnected")
+            expect_equal(names(live)[live == "N:/"], "(N:)")
+          })
+          test_that("every drive keeps its own label, ready or not (#171, #200)", {
+            expect_setequal(unname(live), unname(expected))
+            for (d in expected) expect_equal(names(live)[live == d], names(expected)[expected == d], label = d)
+          })
+          test_that("PowerShell on its own gives the same answer", {
+            expect_equal(windowsVolumesPowershell()[order(expected)], expected[order(expected)])
+          })
+          test_that("WMIC, when present, agrees on the drive letters", {
+            skip_if(is.null(wmic), "WMIC is not installed on this image")
+            expect_setequal(unname(wmic), unname(expected))
+          })
+          test_that("a WMIC that fails falls back to PowerShell (#193)", {
+            local_mocked_bindings(system = function(...) structure(character(0), status = 4110L), .package = "base")
+            v <- getVolumes()()
+            expect_setequal(unname(v), unname(expected))
+            expect_equal(names(v)[v == "V:/"], "SFLABEL (V:)")
+          })
+          test_that("listing the drives is quick even with a disconnected one", {
+            expect_lt(secs, 15)
+          })
+
+      - name: Open a drive in the dialog
+        shell: Rscript {0}
+        run: |
+          pkgload::load_all(".", export_all = TRUE, quiet = TRUE)
+          library(testthat)
+          roots <- getVolumes()()
+          get <- fileGetter(roots = roots)
+          v <- names(roots)[roots == "V:/"]
+          writeLines("x", "V:/on-the-vhd.txt")
+          test_that("the file dialog lists a labelled drive by its name", {
+            expect_true("on-the-vhd.txt" %in% get("", v)$files$filename)
+          })
+          test_that("the disconnected drive lists as missing rather than erroring", {
+            n <- names(roots)[roots == "N:/"]
+            expect_no_error(x <- get("", n))
+            expect_false(isTRUE(x$exist) && nrow(x$files) > 0)
+          })
