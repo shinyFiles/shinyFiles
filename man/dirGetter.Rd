@@ -4,7 +4,14 @@
 \alias{dirGetter}
 \title{Create a function that updates a folder tree based on the given restrictions}
 \usage{
-dirGetter(roots, restrictions, filetypes, pattern, hidden = FALSE)
+dirGetter(
+  roots,
+  restrictions,
+  filetypes,
+  pattern,
+  hidden = FALSE,
+  strictRoots = FALSE
+)
 }
 \arguments{
 \item{roots}{A named vector of absolute filepaths or a function returning a
@@ -22,6 +29,9 @@ filter the file pane, which \code{\link[=fileGetter]{fileGetter()}} builds.}
 
 \item{hidden}{A logical value specifying whether hidden files should be
 returned or not}
+
+\item{strictRoots}{If \code{TRUE}, symlinks that lead out of the root are left out
+of the tree. The default, \code{FALSE}, follows them.}
 }
 \value{
 A function taking a list representation of a folder hierarchy along

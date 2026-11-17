@@ -30,14 +30,17 @@ NULL
 #' @param cache An optional listing cache (see `listingCache()`). Folders
 #' already listed in it are not read again.
 #'
+#' @param strictRoot The root folder when symlinks must not lead out of it (see
+#' `strictRoots` in [dirGetter()]), or `NULL` to follow them.
+#'
 #' @return A list of the same format as 'tree', but with updated values to
 #' reflect the current file system state.
 #'
 #' @importFrom fs path dir_ls file_info path_file
 #'
-traverseDirs <- function(tree, root, restrictions, hidden, cache = NULL) {
+traverseDirs <- function(tree, root, restrictions, hidden, cache = NULL, strictRoot = NULL) {
   location <- path(root, tree$name)
-  folders <- folderNamesIn(location, restrictions, hidden, cache)
+  folders <- folderNamesIn(location, restrictions, hidden, cache, strictRoot)
   if (is.null(folders)) return(NULL)
 
   if (length(folders) == 0) {
@@ -57,7 +60,8 @@ traverseDirs <- function(tree, root, restrictions, hidden, cache = NULL) {
         # used. One already marked empty is re-checked, so a folder created in
         # it still shows up.
         if (isTRUE(child$expanded) || isTRUE(child$empty)) {
-          traverseDirs(child, root = location, restrictions = restrictions, hidden = hidden, cache = cache)
+          traverseDirs(child, root = location, restrictions = restrictions, hidden = hidden,
+                       cache = cache, strictRoot = strictRoot)
         } else {
           known <- peekCached(cache, folderKey(path(location, child$name)))
           child$empty <- !is.null(known) && length(known) == 0
@@ -132,10 +136,10 @@ folderKey <- function(location) paste0("folders:", location)
 #'
 #' @noRd
 #'
-folderNamesIn <- function(location, restrictions, hidden, cache = NULL) {
+folderNamesIn <- function(location, restrictions, hidden, cache = NULL, strictRoot = NULL) {
   cached(cache, folderKey(location), function() {
     if (!dir.exists(location)) return(NULL)
-    path_file(listFolders(location, restrictions, hidden))
+    path_file(listFolders(location, restrictions, hidden, strictRoot))
   })
 }
 
@@ -150,11 +154,17 @@ folderNamesIn <- function(location, restrictions, hidden, cache = NULL) {
 #'
 #' @noRd
 #'
-listFolders <- function(location, restrictions, hidden) {
+listFolders <- function(location, restrictions, hidden, strictRoot = NULL) {
   candidates <- suppressWarnings(
     dir_ls(location, all = hidden, type = c("directory", "symlink"), fail = FALSE)
   )
-  dropRestricted(candidates[dir.exists(candidates)], restrictions)
+  folders <- dropRestricted(candidates[dir.exists(candidates)], restrictions)
+  if (is.null(strictRoot)) return(folders)
+  # Only symlinks can lead out; the type listing above says which they are.
+  links <- as.character(folders) %in% as.character(
+    suppressWarnings(dir_ls(location, all = hidden, type = "symlink", fail = FALSE))
+  )
+  dropEscapingLinks(folders, strictRoot, ifelse(links, "symlink", "directory"))
 }
 
 #' Update the children element to reflect current state
@@ -208,6 +218,9 @@ updateChildren <- function(oldChildren, currentChildren) {
 #' @param hidden A logical value specifying whether hidden files should be
 #' returned or not
 #'
+#' @param strictRoots If `TRUE`, symlinks that lead out of the root are left out
+#' of the tree. The default, `FALSE`, follows them.
+#'
 #' @return A function taking a list representation of a folder hierarchy along
 #' with the name of the root where it starts, and optionally a listing cache.
 #' See [traverseDirs()] for a description of the format for the list
@@ -215,7 +228,7 @@ updateChildren <- function(oldChildren, currentChildren) {
 #'
 #' @importFrom fs path path_norm
 #'
-dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
+dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE, strictRoots = FALSE) {
   if (missing(filetypes)) filetypes <- NULL
   if (missing(restrictions)) restrictions <- NULL
 
@@ -228,8 +241,10 @@ dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
     # The tree comes from the browser; its top folder must be within the root.
     top <- path_norm(path(currentRoots[[root]], if (is.null(tree$name)) "" else tree$name))
     if (!pathWithin(top, path_norm(currentRoots[[root]]))) tree$name <- ""
+    strictRoot <- if (isTRUE(strictRoots)) currentRoots[[root]] else NULL
+    if (!is.null(strictRoot) && !withinRealRoot(top, strictRoot)) tree$name <- ""
 
-    tree <- traverseDirs(tree, currentRoots[root], restrictions, hidden, cache)
+    tree <- traverseDirs(tree, currentRoots[root], restrictions, hidden, cache, strictRoot)
     
     list(
       tree = tree,
@@ -257,7 +272,7 @@ dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
 #'
 #' @noRd
 #'
-dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
+dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE, strictRoots = FALSE) {
   if (missing(restrictions)) restrictions <- NULL
 
   list(
@@ -279,8 +294,9 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
       walk(tree, path(rootPath, tree$name), character(0))
       found
     },
-    probe = function(location, cache) {
-      folders <- folderNamesIn(location, restrictions, hidden, cache)
+    probe = function(location, cache, rootPath = NULL) {
+      strictRoot <- if (isTRUE(strictRoots)) rootPath else NULL
+      folders <- folderNamesIn(location, restrictions, hidden, cache, strictRoot)
       !is.null(folders) && length(folders) == 0
     }
   )
@@ -451,7 +467,7 @@ shinyDirChoose <- function(
       while (length(pending) > 0 && difftime(Sys.time(), started, units = "secs") < 0.02) {
         folder <- pending[[1]]
         pending <<- pending[-1]
-        if (prober$probe(folder$location, cache)) empty[[length(empty) + 1]] <- I(folder$segments)
+        if (prober$probe(folder$location, cache, rootPath)) empty[[length(empty) + 1]] <- I(folder$segments)
       }
       if (length(empty) > 0) {
         session$sendCustomMessage(
@@ -623,12 +639,12 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
 #'
 #' @export
 #'
-parseDirPath <- function(roots, selection) {
+parseDirPath <- function(roots, selection, strictRoots = FALSE) {
   currentRoots <- if (inherits(roots, "function")) roots() else roots
 
   if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
 
   if (is.integer(selection)) return(character(0))
-  location <- selectionPath(currentRoots, selection$root, selection$path)
+  location <- selectionPath(currentRoots, selection$root, selection$path, strictRoots)
   if (is.null(location)) character(0) else location
 }

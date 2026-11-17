@@ -7,17 +7,21 @@
 \alias{parseSavePath}
 \title{Convert the output of a selection to platform specific path(s)}
 \usage{
-parseFilePaths(roots, selection)
+parseFilePaths(roots, selection, strictRoots = FALSE)
 
-parseDirPath(roots, selection)
+parseDirPath(roots, selection, strictRoots = FALSE)
 
-parseSavePath(roots, selection)
+parseSavePath(roots, selection, strictRoots = FALSE)
 }
 \arguments{
 \item{roots}{The path to the root as specified in the \code{shinyFileChoose()}
 call in \code{shinyServer()}}
 
 \item{selection}{The corresponding input variable to be parsed}
+
+\item{strictRoots}{If \code{TRUE}, a selection that is only inside the root by
+way of a symlink leading out of it counts as nothing chosen. Use the value
+given to \code{shinyFileChoose()}, \code{shinyDirChoose()} or \code{shinyFileSave()}.}
 }
 \value{
 A data frame matching the format of \code{\link[shiny:fileInput]{shiny::fileInput()}}

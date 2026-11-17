@@ -199,7 +199,7 @@ formatFiletype <- function(filetype) {
 #'
 #' @export
 #'
-parseSavePath <- function(roots, selection) {
+parseSavePath <- function(roots, selection, strictRoots = FALSE) {
   if (all(is.null(selection))) {
     return(tibble(
       name = character(), type = character(),
@@ -213,7 +213,7 @@ parseSavePath <- function(roots, selection) {
   if (all(is.integer(selection))) {
     tibble(name = character(0), type = character(0), datapath = character(0))
   } else {
-    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name))
+    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name), strictRoots)
     # The file goes into a folder within the root, so the name is a plain name.
     if (is.null(savefile) || grepl("[/\\\\]", paste(unlist(selection$name), collapse = ""))) {
       return(tibble(name = character(0), type = character(0), datapath = character(0)))

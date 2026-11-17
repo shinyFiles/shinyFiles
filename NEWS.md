@@ -17,6 +17,11 @@
   network drive, no longer shifts the names of the drives after it when WMIC
   is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
   used instead of raising an error (#193).
+* New `strictRoots` argument for `shinyFileChoose()`, `shinyDirChoose()`,
+  `shinyFileSave()` and the `parse*Path()` functions. With
+  `strictRoots = TRUE`, a root is a hard boundary: symlinks inside it that
+  lead out are left out of the dialogs and can't be opened or chosen. The
+  default, `FALSE`, follows symlinks as before.
 * "Create new folder" in the folder and save dialogs now only creates a folder
   with a plain name, directly inside the folder being shown and within its
   root. Names containing a path separator or `..`, existing names, and folders
