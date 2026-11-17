@@ -57,9 +57,10 @@ jobs:
             shQuote("[System.IO.DriveInfo]::GetDrives() | ForEach-Object { $_.Name + '|' + $_.IsReady + '|' + $(if ($_.IsReady) { $_.VolumeLabel } else { '' }) }", type = "cmd")),
             stdout = TRUE)
           cat("Windows reports:\n", paste0("  ", ps, "\n"), sep = "")
-          truth <- do.call(rbind, strsplit(sub("\r$", "", ps), "|", fixed = TRUE))
+          # A trailing "|" so strsplit() keeps an empty label as "".
+          truth <- do.call(rbind, strsplit(paste0(sub("\r$", "", ps), "|"), "|", fixed = TRUE))
           truth <- data.frame(drive = sub("\\\\$", "/", truth[, 1]), ready = truth[, 2] == "True",
-                              label = if (ncol(truth) > 2) truth[, 3] else "")
+                              label = truth[, 3])
           expected <- setNames(truth$drive, paste0(ifelse(truth$label == "", "", paste0(truth$label, " ")),
                                                   "(", sub("/$", "", truth$drive), ")"))
           show <- function(what, v) cat(what, ":\n", paste0("  ", unname(v), "  ", names(v), "\n"), sep = "")
