@@ -236,3 +236,29 @@ def test_clicking_save_is_not_cancelled_by_relabelling_the_button(app: Page):
     assert not replaced, "the Save button's label was rewritten without changing"
     d.find("#sF-selectButton").click()
     d.expect_closed()
+
+
+@pytest.mark.parametrize("name", ["a/b", "../escape", ".."])
+def test_a_refused_new_folder_keeps_the_save_dialog_usable(app: Page, fixture_dir: Path, name):
+    # The save dialog used to open a folder named after whatever was typed, so a
+    # refused name left it showing an empty, missing folder with the
+    # new-folder button grayed out. It now stays put and says why.
+    d = Dialog(app, "save").open()
+    d.find("#sF-btn-newDir").click()
+    # Typed, not filled: the + button is enabled on keyup.
+    d.find(".sF-newDir input").press_sequentially(name)
+    d.find(".sF-newDir ul button").click()
+    expect(app.locator(".shiny-notification-error")).to_be_visible()
+    assert d.location() == [""]
+    expect(d.find(".sF-fileList")).to_contain_text("folder")
+    expect(d.find("#sF-btn-newDir")).to_be_enabled()
+    assert not (fixture_dir / "escape").exists()
+
+
+def test_an_existing_folder_name_opens_that_folder_and_says_it_exists(app: Page):
+    d = Dialog(app, "save").open()
+    d.find("#sF-btn-newDir").click()
+    d.find(".sF-newDir input").press_sequentially("folder")
+    d.after_listing(lambda: d.find(".sF-newDir ul button").click())
+    expect(app.locator(".shiny-notification-error")).to_contain_text('"folder" already exists.')
+    assert d.location() == ["", "folder"]
