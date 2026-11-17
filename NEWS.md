@@ -1,5 +1,9 @@
 # shinyFiles (development version)
 
+* `getVolumes()` on Windows: a drive without a label, such as a disconnected
+  network drive, no longer shifts the names of the drives after it when WMIC
+  is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
+  used instead of raising an error (#193).
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

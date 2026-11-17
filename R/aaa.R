@@ -8,6 +8,61 @@
   shiny::addResourcePath("sF", system.file("www", package = "shinyFiles"))
 }
 
+#' Drive letters and labels from WMIC
+#'
+#' WMIC is missing on newer Windows and fails on some machines (status 4110 in
+#' #193); either way this returns NULL so PowerShell can be tried instead.
+#'
+#' @noRd
+#'
+windowsVolumesWmic <- function() {
+  wmic <- paste0(Sys.getenv("SystemRoot"), "\\System32\\Wbem\\WMIC.exe")
+  if (!file.exists(wmic)) return(NULL)
+  run <- function(args) {
+    out <- suppressWarnings(system(paste(wmic, args), intern = TRUE, ignore.stderr = TRUE))
+    if (!is.null(attr(out, "status"))) return(NULL)
+    sub(" *\\r$", "", out)
+  }
+  volumes <- run("logicaldisk get Caption")
+  volNames <- run("/FAILFAST:1000 logicaldisk get VolumeName")
+  if (is.null(volumes) || is.null(volNames) || length(volumes) != length(volNames)) return(NULL)
+  keep <- !tolower(volumes) %in% c("caption", "")
+  volumes <- volumes[keep]
+  if (length(volumes) == 0) return(NULL)
+  volNames <- volNames[keep]
+  volNames <- paste0(volNames, ifelse(volNames == "", "", " "), "(", volumes, ")")
+  volumes <- gsub(":$", ":/", volumes)
+  names(volumes) <- volNames
+  volumes
+}
+
+#' Drive letters and labels from PowerShell
+#'
+#' One "name|label" line per drive, so a drive without a label (a disconnected
+#' network drive, say) can't shift the labels of the drives after it (#171,
+#' #200). Labels can't contain "|". A drive that isn't ready is still listed,
+#' as WMIC does, but its label isn't read.
+#'
+#' @noRd
+#'
+windowsVolumesPowershell <- function() {
+  command <- paste(
+    "[System.IO.DriveInfo]::GetDrives() | ForEach-Object {",
+    "$_.Name + '|' + $(if ($_.IsReady) { $_.VolumeLabel } else { '' }) }"
+  )
+  out <- suppressWarnings(tryCatch(
+    system2("powershell", c("-NoProfile", "-Command", shQuote(command, type = "cmd")), stdout = TRUE),
+    error = function(e) character(0)
+  ))
+  out <- grep("|", sub("\\r$", "", out), fixed = TRUE, value = TRUE)
+  if (length(out) == 0) return(NULL)
+  drive <- sub("\\|.*$", "", out)
+  label <- sub("^[^|]*\\|", "", out)
+  volumes <- gsub("[\\\\/]$", "/", drive)
+  names(volumes) <- paste0(ifelse(label == "", "", paste0(label, " ")), "(", sub("/$", "", volumes), ")")
+  volumes
+}
+
 #' check for NULL or NA
 #'
 #' @noRd
@@ -77,31 +132,9 @@ getVolumes <- function(exclude) {
         volumes <- c(volumes, media)
       }
     } else if (osSystem == "Windows") {
-      wmic <- paste0(Sys.getenv("SystemRoot"), "\\System32\\Wbem\\WMIC.exe")
-      if (!file.exists(wmic)) {
-        volumes_info <- system2("powershell", "$dvr=[System.IO.DriveInfo]::GetDrives();Write-Output $dvr.length $dvr.name $dvr.VolumeLabel;", stdout = TRUE)
-        num = as.integer(volumes_info[1])
-        if(num == 0) return(NULL)
-        mat <- matrix(volumes_info[-1], nrow = num, ncol = 2)
-        mat[, 1] <- gsub(":\\\\$", ":/", mat[, 1])
-        sel <- mat[, 2] == ""
-        mat[sel, 2] <- mat[sel, 1]
-        volumes <- mat[, 1]
-        volNames <- mat[, 2]
-        volNames <- paste0(volNames, " (", gsub(":/$", ":", volumes), ")")
-      } else {
-        volumes <- system(paste(wmic, "logicaldisk get Caption"), intern = TRUE, ignore.stderr=TRUE)
-        volumes <- sub(" *\\r$", "", volumes)
-        keep <- !tolower(volumes) %in% c("caption", "")
-        volumes <- volumes[keep]
-        volNames <- system(paste(wmic, "/FAILFAST:1000 logicaldisk get VolumeName"), intern = TRUE, ignore.stderr=TRUE)
-        volNames <- sub(" *\\r$", "", volNames)
-        volNames <- volNames[keep]
-        volNames <- paste0(volNames, ifelse(volNames == "", "", " "))
-        volNames <- paste0(volNames, "(", volumes, ")")
-      }
-      names(volumes) <- volNames
-      volumes <- gsub(":$", ":/", volumes)
+      volumes <- windowsVolumesWmic()
+      if (is.null(volumes)) volumes <- windowsVolumesPowershell()
+      if (is.null(volumes)) return(NULL)
     } else {
       stop("unsupported OS")
     }
