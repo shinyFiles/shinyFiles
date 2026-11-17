@@ -62,3 +62,42 @@ test_that("a refused request leaves the dialogs working", {
     expect_true(d$last()$exist)
   })
 })
+
+test_that("a refusal says why (#17)", {
+  expect_null(attr(mk("fresh", list(""), "r"), "reason"))
+  expect_equal(attr(mk("sub", list(""), "r"), "reason"), '"sub" already exists.')
+  expect_equal(attr(mk("afile.txt", list(""), "r"), "reason"), '"afile.txt" already exists.')
+  for (name in c("", "  ", ".", "..", "a/b", "a\\b")) {
+    expect_match(attr(mk(name, list(""), "r"), "reason"), "must not be empty", label = name)
+  }
+  expect_equal(attr(mk("x", list("", "nope"), "r"), "reason"), "The folder could not be created there.")
+  expect_equal(attr(mk("x", list(""), "not-a-root"), "reason"), "The folder could not be created there.")
+})
+
+test_that("the dialogs show the reason when a folder isn't created (#17)", {
+  for (observer in list(shinyFileSave, shinyDirChoose)) {
+    withFileDialog(observer, c(r = mkRoot), function(d) {
+      d$open()
+      d$newDir("sub", root = "r")
+      notes <- d$notifications()
+      expect_length(notes, 1)
+      expect_match(notes[[1]]$text, '"sub" already exists.', fixed = TRUE)
+      expect_equal(notes[[1]]$type, "error")
+
+      d$newDir("../out", root = "r")
+      expect_length(d$notifications(), 2)
+      expect_match(d$notifications()[[2]]$text, "must not be empty")
+    })
+  }
+})
+
+test_that("a created folder shows no notification", {
+  for (observer in list(shinyFileSave, shinyDirChoose)) {
+    withFileDialog(observer, c(r = mkRoot), function(d) {
+      d$open()
+      # The folder dialog names its root as selectedRoot, not root, so pass it.
+      d$newDir(basename(tempfile("made")), root = "r")
+      expect_length(d$notifications(), 0)
+    })
+  }
+})

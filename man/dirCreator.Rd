@@ -15,7 +15,8 @@ should adapt to changes in the filesystem).}
 }
 \value{
 A function that creates directories based on the information returned
-by the client.
+by the client. It returns \code{TRUE} when the folder was created, and otherwise
+\code{FALSE} with a \code{reason} attribute saying why, for showing to the user.
 }
 \description{
 This function returns a function that can be used to create new directories

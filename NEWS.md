@@ -3,7 +3,8 @@
 * "Create new folder" in the folder and save dialogs now only creates a folder
   with a plain name, directly inside the folder being shown and within its
   root. Names containing a path separator or `..`, existing names, and folders
-  outside the root are refused.
+  outside the root are refused, and the dialog now says why instead of
+  doing nothing (#17).
 * `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
   locations inside the root they name. A selection that resolves outside it, or
   names an unknown root, is treated as nothing chosen.

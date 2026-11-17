@@ -280,6 +280,20 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
   )
 }
 
+#' Tell the user why a new folder wasn't created
+#'
+#' Takes what a [dirCreator()] function returned. Does nothing on success.
+#'
+#' @noRd
+#'
+notifyDirCreate <- function(made) {
+  if (isTRUE(made)) return(invisible())
+  reason <- attr(made, "reason")
+  if (is.null(reason)) reason <- "The folder could not be created."
+  shiny::showNotification(shiny::p(reason), type = "error")
+  invisible()
+}
+
 #' Create a function that creates a new directory
 #'
 #' This function returns a function that can be used to create new directories
@@ -299,28 +313,34 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
 #' @param ... Currently unused
 #'
 #' @return A function that creates directories based on the information returned
-#' by the client.
+#' by the client. It returns `TRUE` when the folder was created, and otherwise
+#' `FALSE` with a `reason` attribute saying why, for showing to the user.
 #'
 #' @importFrom fs path dir_create path_real dir_exists file_exists
 #'
 dirCreator <- function(roots, ...) {
+  refuse <- function(reason) structure(FALSE, reason = reason)
   function(name, path, root) {
     currentRoots <- if (inherits(roots, "function")) roots() else roots
     if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
-    if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(FALSE)
-    if (!is.character(name) || length(name) != 1 || is.na(name)) return(FALSE)
+    cantCreate <- refuse("The folder could not be created there.")
+    if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(cantCreate)
+    if (!is.character(name) || length(name) != 1 || is.na(name)) return(cantCreate)
     name <- trimws(name)
-    if (!nzchar(name) || name %in% c(".", "..") || grepl("[/\\]", name)) return(FALSE)
+    if (!nzchar(name) || name %in% c(".", "..") || grepl("[/\\]", name)) {
+      return(refuse("A folder name must not be empty or contain / or \\."))
+    }
 
     rootPath <- try(path_real(currentRoots[[root]]), silent = TRUE)
     parent <- try(path_real(path(currentRoots[[root]], paste0(unlist(path), collapse = "/"))), silent = TRUE)
-    if (inherits(rootPath, "try-error") || inherits(parent, "try-error")) return(FALSE)
-    if (!dir_exists(parent) || !pathWithin(parent, rootPath)) return(FALSE)
+    if (inherits(rootPath, "try-error") || inherits(parent, "try-error")) return(cantCreate)
+    if (!dir_exists(parent) || !pathWithin(parent, rootPath)) return(cantCreate)
 
     location <- path(parent, name)
-    if (file_exists(location)) return(FALSE)
+    if (file_exists(location)) return(refuse(sprintf("\"%s\" already exists.", name)))
     created <- try(dir_create(location), silent = TRUE)
-    !inherits(created, "try-error")
+    if (inherits(created, "try-error")) return(refuse(sprintf("\"%s\" could not be created.", name)))
+    TRUE
   }
 }
 #' Build an expanded tree along a path
@@ -434,11 +454,12 @@ shinyDirChoose <- function(
     if (reopened || identical(request, lastRequest)) cache$clear()
     lastRequest <<- request
     
-    # Show a notification if a user is trying to create a 
-    # new directory when that option has been disabled 
+    # Tell the user when a new folder wasn't made, including when creating
+    # folders has been disabled.
     if (!identical(createDir, lastDirCreate)) {
       if (allowDirCreate) {
-        dirCreate(createDir$name, createDir$path, createDir$root)
+        made <- dirCreate(createDir$name, createDir$path, createDir$root)
+        notifyDirCreate(made)
         cache$clear()
         lastDirCreate <<- createDir
       } else {
