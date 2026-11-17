@@ -99,14 +99,22 @@ def layout_app(request, page: Page):
     if pkg and subprocess.run([RSCRIPT, "-e", f"quit(status = !requireNamespace('{pkg}', quietly = TRUE))"]).returncode:
         pytest.skip(f"{pkg} is not installed")
     tmp = Path(tempfile.mkdtemp(prefix="sf-layout-"))
-    proc, url = _start(request.param, tmp)
-    page.goto(url)
-    page.url_layout = request.param
-    page.wait_for_function("window.Shiny && Shiny.shinyapp && Shiny.shinyapp.isConnected()")
-    page.wait_for_selector("button#inside.shiny-bound-input")
-    yield page
-    proc.terminate()
-    shutil.rmtree(tmp, ignore_errors=True)
+    proc = None
+    try:
+        proc, url = _start(request.param, tmp)
+        page.goto(url)
+        page.url_layout = request.param
+        page.wait_for_function("window.Shiny && Shiny.shinyapp && Shiny.shinyapp.isConnected()")
+        page.wait_for_selector("button#inside.shiny-bound-input")
+        yield page
+    finally:
+        if proc is not None:
+            proc.terminate()
+            try:
+                proc.wait(10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def test_the_script_loads_once_and_a_click_opens_one_dialog(layout_app: Page):
