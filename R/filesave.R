@@ -111,7 +111,7 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
 #' @rdname shinyFiles-buttons
 #' @param filename A predefined filename to be filed in. Can be modified by the
 #' user during saving.
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
@@ -123,20 +123,7 @@ shinySaveButton <- function(id, label, title, filename = "", filetype, buttonTyp
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
 
   value <- restoreInput(id = id, default = NULL)
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$button(
       id = id,
       type = "button",
@@ -149,12 +136,13 @@ shinySaveButton <- function(id, label, title, filename = "", filetype, buttonTyp
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 #' @rdname shinyFiles-buttons
 #'
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
@@ -166,20 +154,7 @@ shinySaveLink <- function(id, label, title, filename = "", filetype,
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
 
   value <- restoreInput(id = id, default = NULL)
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$a(
       id = id,
       type = "button",
@@ -192,7 +167,8 @@ shinySaveLink <- function(id, label, title, filename = "", filetype,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 

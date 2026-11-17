@@ -16,7 +16,7 @@ test_that("no file types is encoded as an array, like NA", {
   # stopped the save dialog from opening.
   expect_equal(as.character(formatFiletype(NULL)), "[null]")
   expect_equal(as.character(formatFiletype(list())), "[null]")
-  expect_equal(as.character(shinySaveButton("s", "L", "T", filetype = NULL)[[2]]$attribs[["data-filetype"]]), "[null]")
+  expect_equal(as.character(shinySaveButton("s", "L", "T", filetype = NULL)$attribs[["data-filetype"]]), "[null]")
 })
 
 test_that("getSession errors outside a Shiny session", {

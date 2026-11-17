@@ -1,5 +1,12 @@
 # shinyFiles (development version)
 
+* The buttons and links now bring their script and stylesheets as an HTML
+  dependency rather than a `singleton()` in `<head>`. A button inside a bslib
+  accordion, `shinyjs::hidden()`, `renderUI()` or a Quarto document no longer
+  loads the script twice and opens two dialogs per click (#172, #192, #198).
+  The builders now return the button tag itself instead of a `tagList()`, so
+  `shinyjs::hidden()` and similar wrappers accept them. If a page links
+  `sF/shinyFiles.js` itself as well, only the first copy sets up the dialogs.
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

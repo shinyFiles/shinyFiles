@@ -4,8 +4,8 @@
 
 library(htmltools)
 
-# The <button>/<a> itself, without the singleton <head> dependencies.
-mainTag <- function(x) x[[2]]
+# The <button>/<a> itself; its script and stylesheets ride along as a dependency.
+mainTag <- function(x) x
 attrOf <- function(x, name) mainTag(x)$attribs[[name]]
 classesOf <- function(x) strsplit(attrOf(x, "class"), " ", fixed = TRUE)[[1]]
 
@@ -42,12 +42,13 @@ for (nm in names(builders)) {
   })
 
   test_that(paste(nm, "loads the script and stylesheets once per page"), {
-    # singleton() content only appears when the page is rendered.
-    page <- renderTags(tagList(make(), make()))
-    for (asset in c("sF/shinyFiles.js", "sF/styles.css", "sF/fileIcons.css")) {
-      expect_equal(lengths(regmatches(page$head, gregexpr(asset, page$head, fixed = TRUE))), 1,
-                   label = asset)
-    }
+    deps <- resolveDependencies(findDependencies(tagList(make(), make())))
+    expect_length(deps, 1)
+    expect_equal(deps[[1]]$name, "shinyFiles")
+    expect_equal(deps[[1]]$script, "shinyFiles.js")
+    expect_equal(deps[[1]]$stylesheet, c("styles.css", "fileIcons.css"))
+    # It is a plain tag, so wrappers such as shinyjs::hidden() accept it.
+    expect_s3_class(make(), "shiny.tag")
   })
 
   test_that(paste(nm, "adds class, style, icon and extra attributes"), {

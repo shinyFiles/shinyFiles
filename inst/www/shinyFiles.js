@@ -2807,6 +2807,11 @@ var shinyFiles = (function () {
   return sF;
 })();
 
+// A page can end up with this script twice (an app that also links sF/shinyFiles.js
+// itself, say). Only the first copy sets up the handlers, or every click would
+// open two dialogs.
 $(document).ready(function () {
+  if (window.shinyFilesInitialised) return;
+  window.shinyFilesInitialised = true;
   shinyFiles.init();
 });

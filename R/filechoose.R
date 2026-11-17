@@ -579,7 +579,7 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
 #' `www/icons/readme-fatcow.txt` in the installed package (the original FatCow
 #' website is no longer online).
 #'
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
@@ -590,20 +590,7 @@ shinyFilesButton <- function(
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$button(
       id = id,
       type = "button",
@@ -615,13 +602,14 @@ shinyFilesButton <- function(
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 
 #' @rdname shinyFiles-buttons
 #' @name shinyFiles-buttons
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
@@ -632,20 +620,7 @@ shinyFilesLink <- function(
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$a(
       id = id,
       type = "button",
@@ -657,7 +632,8 @@ shinyFilesLink <- function(
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 
