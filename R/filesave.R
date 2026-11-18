@@ -41,11 +41,11 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
     fileGet <- do.call(fileGetter, list(...))
     dirCreate <- do.call(dirCreator, list(...))
 
-    # Show a notification if a user is trying to create a
-    # new directory when that option has been disabled
+    # Tell the user when a new folder wasn't made, including when creating
+    # folders has been disabled.
     if (!identical(createDir, lastDirCreate)) {
       if (allowDirCreate) {
-        dirCreate(createDir$name, createDir$path, createDir$root)
+        notifyDirCreate(dirCreate(createDir$name, createDir$path, createDir$root))
         lastDirCreate <<- createDir
       } else {
         shiny::showNotification(shiny::p("Creating directories has been disabled."), type = "error")
@@ -216,8 +216,11 @@ parseSavePath <- function(roots, selection) {
   if (all(is.integer(selection))) {
     tibble(name = character(0), type = character(0), datapath = character(0))
   } else {
-    root <- currentRoots[selection$root]
-    savefile <- path(root, paste0(c(selection$path, selection$name), collapse = "/"))
+    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name))
+    # The file goes into a folder within the root, so the name is a plain name.
+    if (is.null(savefile) || grepl("[/\\\\]", paste(unlist(selection$name), collapse = ""))) {
+      return(tibble(name = character(0), type = character(0), datapath = character(0)))
+    }
     type <- selection$type
     type <- if (length(type) == 0) "" else unlist(type)
     tibble(name = path_file(savefile), type = type, datapath = savefile)

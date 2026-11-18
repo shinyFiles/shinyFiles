@@ -13,6 +13,14 @@
 * The dialogs' toolbar is tidier: the path-entry pencil sits against the
   root drop-down, refresh moves to the right end, and the path box spans the
   whole toolbar with its check button the same height as the input (#53).
+* "Create new folder" in the folder and save dialogs now only creates a folder
+  with a plain name, directly inside the folder being shown and within its
+  root. Names containing a path separator or `..`, existing names, and folders
+  outside the root are refused, and the dialog now says why instead of
+  doing nothing (#17).
+* `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
+  locations inside the root they name. A selection that resolves outside it, or
+  names an unknown root, is treated as nothing chosen.
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

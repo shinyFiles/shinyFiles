@@ -213,6 +213,8 @@ updateChildren <- function(oldChildren, currentChildren) {
 #' See [traverseDirs()] for a description of the format for the list
 #' representation.
 #'
+#' @importFrom fs path path_norm
+#'
 dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
   if (missing(filetypes)) filetypes <- NULL
   if (missing(restrictions)) restrictions <- NULL
@@ -222,6 +224,10 @@ dirGetter <- function(roots, restrictions, filetypes, pattern, hidden=FALSE) {
 
     if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
     if (is.null(root)) root <- names(currentRoots)[1]
+
+    # The tree comes from the browser; its top folder must be within the root.
+    top <- path_norm(path(currentRoots[[root]], if (is.null(tree$name)) "" else tree$name))
+    if (!pathWithin(top, path_norm(currentRoots[[root]]))) tree$name <- ""
 
     tree <- traverseDirs(tree, currentRoots[root], restrictions, hidden, cache)
     
@@ -280,14 +286,31 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
   )
 }
 
+#' Tell the user why a new folder wasn't created
+#'
+#' Takes what a [dirCreator()] function returned. Does nothing on success.
+#'
+#' @noRd
+#'
+notifyDirCreate <- function(made) {
+  if (isTRUE(made)) return(invisible())
+  reason <- attr(made, "reason")
+  if (is.null(reason)) reason <- "The folder could not be created."
+  shiny::showNotification(shiny::p(reason), type = "error")
+  invisible()
+}
+
 #' Create a function that creates a new directory
 #'
 #' This function returns a function that can be used to create new directories
 #' based on the information returned from the client. The returned function
-#' takes the name, path and root of the directory to create and parses it into
-#' a platform compliant format and then uses dir.create to create it. The
-#' returned function returns TRUE if the directory was created successfully and
-#' FALSE otherwise.
+#' takes the name, path and root of the directory to create, and creates it
+#' inside `path` within that root. The returned function returns TRUE if the
+#' directory was created and FALSE otherwise.
+#'
+#' The request comes from the browser, so it is checked before anything is
+#' created: `name` must be a single folder name, and the folder it goes into
+#' must exist and lie within the root once symlinks are resolved.
 #'
 #' @param roots A named vector of absolute filepaths or a function returning a
 #' named vector of absolute filepaths (the latter is useful if the volumes
@@ -296,16 +319,34 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
 #' @param ... Currently unused
 #'
 #' @return A function that creates directories based on the information returned
-#' by the client.
+#' by the client. It returns `TRUE` when the folder was created, and otherwise
+#' `FALSE` with a `reason` attribute saying why, for showing to the user.
 #'
-#' @importFrom fs path dir_create
+#' @importFrom fs path dir_create path_real dir_exists file_exists
 #'
 dirCreator <- function(roots, ...) {
+  refuse <- function(reason) structure(FALSE, reason = reason)
   function(name, path, root) {
     currentRoots <- if (inherits(roots, "function")) roots() else roots
     if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
-    location <- fs::path(currentRoots[root], paste0(c(path, name), collapse = "/"))
-    dir_create(location)
+    cantCreate <- refuse("The folder could not be created there.")
+    if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(cantCreate)
+    if (!is.character(name) || length(name) != 1 || is.na(name)) return(cantCreate)
+    name <- trimws(name)
+    if (!nzchar(name) || name %in% c(".", "..") || grepl("[/\\]", name)) {
+      return(refuse("A folder name must not be empty or contain / or \\."))
+    }
+
+    rootPath <- try(path_real(currentRoots[[root]]), silent = TRUE)
+    parent <- try(path_real(path(currentRoots[[root]], paste0(unlist(path), collapse = "/"))), silent = TRUE)
+    if (inherits(rootPath, "try-error") || inherits(parent, "try-error")) return(cantCreate)
+    if (!dir_exists(parent) || !pathWithin(parent, rootPath)) return(cantCreate)
+
+    location <- path(parent, name)
+    if (file_exists(location)) return(refuse(sprintf("\"%s\" already exists.", name)))
+    created <- try(dir_create(location), silent = TRUE)
+    if (inherits(created, "try-error")) return(refuse(sprintf("\"%s\" could not be created.", name)))
+    TRUE
   }
 }
 #' Build an expanded tree along a path
@@ -419,11 +460,12 @@ shinyDirChoose <- function(
     if (reopened || identical(request, lastRequest)) cache$clear()
     lastRequest <<- request
     
-    # Show a notification if a user is trying to create a 
-    # new directory when that option has been disabled 
+    # Tell the user when a new folder wasn't made, including when creating
+    # folders has been disabled.
     if (!identical(createDir, lastDirCreate)) {
       if (allowDirCreate) {
-        dirCreate(createDir$name, createDir$path, createDir$root)
+        made <- dirCreate(createDir$name, createDir$path, createDir$root)
+        notifyDirCreate(made)
         cache$clear()
         lastDirCreate <<- createDir
       } else {
@@ -569,9 +611,7 @@ parseDirPath <- function(roots, selection) {
 
   if (is.null(names(currentRoots))) stop("Roots must be a named vector or a function returning one")
 
-  if (is.integer(selection)) {
-    character(0)
-  } else {
-    path(currentRoots[selection$root], paste0(selection$path, collapse = "/"))
-  }
+  if (is.integer(selection)) return(character(0))
+  location <- selectionPath(currentRoots, selection$root, selection$path)
+  if (is.null(location)) character(0) else location
 }
