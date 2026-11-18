@@ -35,7 +35,7 @@ NULL
 #' returns a list of files to be passed on to shiny
 #'
 #' @importFrom tools file_ext
-#' @importFrom fs path file_access file_exists dir_ls file_info path_file 
+#' @importFrom fs path file_access file_exists dir_ls file_info path_file path_norm
 #'   path_ext path_join path_norm path_has_parent
 #' @importFrom tibble as_tibble
 #'
@@ -253,6 +253,24 @@ pathWithin <- function(target, base) {
   target <- as.character(target)
   base <- as.character(base)
   identical(target, base) || isTRUE(path_has_parent(target, base))
+}
+
+#' Turn a selection the browser sent back into a path inside its root
+#'
+#' The segments come from the client, so `..` is collapsed and the result must
+#' still lie within the root; otherwise there is no path to return.
+#'
+#' @return The normalised path, or `NULL` when the root is unknown or the
+#' segments lead outside it.
+#'
+#' @noRd
+#'
+selectionPath <- function(currentRoots, root, segments) {
+  if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(NULL)
+  base <- path_norm(currentRoots[[root]])
+  target <- path_norm(path(base, paste0(unlist(segments), collapse = "/")))
+  if (!pathWithin(target, base)) return(NULL)
+  target
 }
 
 #' Path segments of `target` relative to the root `base`
@@ -725,7 +743,11 @@ parseFilePaths <- function(roots, selection) {
       datapath = character(0)
     )
   } else {
-    files <- sapply(selection$files, function(x) path(roots[selection$root], paste0(x, collapse = "/")))
+    files <- lapply(selection$files, function(x) selectionPath(roots, selection$root, x))
+    files <- path(unlist(Filter(Negate(is.null), files)))
+    if (length(files) == 0) {
+      return(tibble(name = character(0), size = numeric(0), type = character(0), datapath = character(0)))
+    }
     tibble(name = path_file(files), size = as.numeric(file_info(files)$size), type = "", datapath = files)
   }
 }

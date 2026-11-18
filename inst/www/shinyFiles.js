@@ -2511,11 +2511,15 @@ var shinyFiles = (function () {
         var directory = getCurrentDirectory(modal);
         var path = directory.path;
         var root = directory.root;
-        var locationData = {
-          path: path.concat([name]),
-          root: root
+        // Open the new folder, unless the name can't be one: the server
+        // refuses it and says why, and the dialog stays where it is.
+        var plain = $.trim(name);
+        if (plain !== '.' && plain !== '..' && !/[\/\\]/.test(plain)) {
+          changeDirectory(button, modal, {
+            path: path.concat([plain]),
+            root: root
+          });
         }
-        changeDirectory(button, modal, locationData)
       } else {
         var directory = modal.find('.sF-dirList .selected');
         if (directory.length != 1) return
