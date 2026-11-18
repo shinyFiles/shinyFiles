@@ -1,5 +1,18 @@
 # shinyFiles (development version)
 
+* The buttons and links now bring their script and stylesheets as an HTML
+  dependency rather than a `singleton()` in `<head>`. A button inside a bslib
+  accordion, `shinyjs::hidden()`, `renderUI()` or a Quarto document no longer
+  loads the script twice and opens two dialogs per click (#172, #192, #198).
+  The builders now return the button tag itself instead of a `tagList()`, so
+  `shinyjs::hidden()` and similar wrappers accept them. If a page links
+  `sF/shinyFiles.js` itself as well, only the first copy sets up the dialogs.
+* The dialogs fit the window with Bootstrap 5 themes (`bslib`) as well as
+  Bootstrap 3: the root drop-down stays on the toolbar row, and on a short
+  window the file list shrinks so Cancel and Select stay on screen.
+* The dialogs' toolbar is tidier: the path-entry pencil sits against the
+  root drop-down, refresh moves to the right end, and the path box spans the
+  whole toolbar with its check button the same height as the input (#53).
 * `getVolumes()` on Windows: a drive without a label, such as a disconnected
   network drive, no longer shifts the names of the drives after it when WMIC
   is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is

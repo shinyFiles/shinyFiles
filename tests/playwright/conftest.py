@@ -87,7 +87,7 @@ def app_url(fixture_dir):
 
 @pytest.fixture(scope="session")
 def js_coverage():
-    collector = jscov.Collector(script_suffix="/sF/shinyFiles.js")
+    collector = jscov.Collector(script_suffix="/shinyFiles.js")
     yield collector
     out = HERE / "coverage"
     if collector.has_data():

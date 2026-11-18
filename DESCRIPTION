@@ -34,6 +34,7 @@ Imports:
     jsonlite,
     later,
     tools,
+    utils,
     shiny (>= 1.1.0),
     fs (>= 1.2.6),
     tibble (>= 1.4.2)

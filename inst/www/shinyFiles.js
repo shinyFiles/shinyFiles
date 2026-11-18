@@ -984,7 +984,7 @@ var shinyFiles = (function () {
                       $('<input>', { type: 'text', placeholder: 'Enter Path' }).addClass('form-control')
                     ).append(
                       $('<span>').addClass('input-group-btn').append(
-                        $('<button>', { type: 'button' }).addClass('btn btn-default').prop('disabled', true).append(
+                        $('<button>', { type: 'button' }).addClass('btn btn-default btn-sm').prop('disabled', true).append(
                           $('<span>').addClass('glyphicon glyphicon-ok-sign')
                         )
                       )
@@ -993,13 +993,13 @@ var shinyFiles = (function () {
                 )
               )
             ).append(
+              $('<select>').addClass('sF-breadcrumps form-control input-sm')
+            ).append(
               $('<div>').addClass('sF-refresh btn-group btn-group-sm').append(
                 $('<button>', { id: 'sF-btn-refresh' }).addClass('btn btn-default').append(
                   $('<span>').addClass('glyphicon glyphicon-refresh')
                 )
               )
-            ).append(
-              $('<select>').addClass('sF-breadcrumps form-control input-sm')
             )
           ).append(
             $('<div>').addClass('sF-fileWindow').append(
@@ -1077,6 +1077,8 @@ var shinyFiles = (function () {
         $(this).toggleClass('open')
           .find('button.sF-btn-textChoice').toggleClass('active');
         if ($(this).hasClass('open')) {
+          // The menu spans the toolbar; point its caret at the pencil.
+          $(this).find('.dropdown-menu').css('--sF-caret-left', ($(this).position().left + 9) + 'px');
           $(this).find('input').val(directory.root + directory.path.join("/")).focus();
           $(this).find('.input-group-btn>button').prop('disabled', true);
         }
@@ -1549,7 +1551,7 @@ var shinyFiles = (function () {
                       $('<input>', { type: 'text', placeholder: 'Enter Path' }).addClass('form-control')
                     ).append(
                       $('<span>').addClass('input-group-btn').append(
-                        $('<button>', { type: 'button' }).addClass('btn btn-default').prop('disabled', true).append(
+                        $('<button>', { type: 'button' }).addClass('btn btn-default btn-sm').prop('disabled', true).append(
                           $('<span>').addClass('glyphicon glyphicon-ok-sign')
                         )
                       )
@@ -1558,13 +1560,13 @@ var shinyFiles = (function () {
                 )
               )
             ).append(
+              $('<select>').addClass('sF-breadcrumps form-control input-sm')
+            ).append(
               $('<div>').addClass('sF-refresh btn-group btn-group-sm').append(
                 $('<button>', { id: 'sF-btn-refresh' }).addClass('btn btn-default').append(
                   $('<span>').addClass('glyphicon glyphicon-refresh')
                 )
               )
-            ).append(
-              $('<select>').addClass('sF-breadcrumps form-control input-sm')
             )
           ).append(
             $('<div>').addClass('sF-fileWindow').append(
@@ -1693,6 +1695,8 @@ var shinyFiles = (function () {
         $(this).toggleClass('open')
           .find('button.sF-btn-textChoice').toggleClass('active');
         if ($(this).hasClass('open')) {
+          // The menu spans the toolbar; point its caret at the pencil.
+          $(this).find('.dropdown-menu').css('--sF-caret-left', ($(this).position().left + 9) + 'px');
           $(this).find('input').val(directory.root + directory.path.join("/")).focus();
           $(this).find('.input-group-btn>button').prop('disabled', true);
         }
@@ -2024,7 +2028,7 @@ var shinyFiles = (function () {
                       $('<input>', { type: 'text', placeholder: 'Enter Path' }).addClass('form-control')
                     ).append(
                       $('<span>').addClass('input-group-btn').append(
-                        $('<button>', { type: 'button' }).addClass('btn btn-default').prop('disabled', true).append(
+                        $('<button>', { type: 'button' }).addClass('btn btn-default btn-sm').prop('disabled', true).append(
                           $('<span>').addClass('glyphicon glyphicon-ok-sign')
                         )
                       )
@@ -2033,13 +2037,13 @@ var shinyFiles = (function () {
                 )
               )
             ).append(
+              $('<select>').addClass('sF-breadcrumps form-control input-sm')
+            ).append(
               $('<div>').addClass('sF-refresh btn-group btn-group-sm').append(
                 $('<button>', { id: 'sF-btn-refresh' }).addClass('btn btn-default').append(
                   $('<span>').addClass('glyphicon glyphicon-refresh')
                 )
               )
-            ).append(
-              $('<select>').addClass('sF-breadcrumps form-control input-sm')
             )
           ).append(
             $('<div>').addClass('sF-dirWindow').append(
@@ -2108,6 +2112,8 @@ var shinyFiles = (function () {
         $(this).toggleClass('open')
           .find('button.sF-btn-textChoice').toggleClass('active');
         if ($(this).hasClass('open')) {
+          // The menu spans the toolbar; point its caret at the pencil.
+          $(this).find('.dropdown-menu').css('--sF-caret-left', ($(this).position().left + 9) + 'px');
           $(this).find('input').val(directory.root + directory.path.join("/")).focus();
           $(this).find('.input-group-btn>button').prop('disabled', true);
         }
@@ -2811,6 +2817,11 @@ var shinyFiles = (function () {
   return sF;
 })();
 
+// A page can end up with this script twice (an app that also links sF/shinyFiles.js
+// itself, say). Only the first copy sets up the handlers, or every click would
+// open two dialogs.
 $(document).ready(function () {
+  if (window.shinyFilesInitialised) return;
+  window.shinyFilesInitialised = true;
   shinyFiles.init();
 });

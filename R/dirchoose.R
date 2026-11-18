@@ -552,7 +552,7 @@ shinyDirChoose <- function(
 }
 #' @rdname shinyFiles-buttons
 #'
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
@@ -562,20 +562,7 @@ shinyDirButton <- function(
   class=NULL, icon=NULL, style=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$button(
       id = id,
       type = "button",
@@ -585,33 +572,21 @@ shinyDirButton <- function(
       "data-val" = value,
       list(icon, as.character(label)),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 
 #' @rdname shinyFiles-buttons
 #'
-#' @importFrom htmltools tagList singleton tags
+#' @importFrom htmltools attachDependencies tags
 #' @importFrom shiny restoreInput
 #'
 #' @export
 #'
 shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ...) {
   value <- restoreInput(id = id, default = NULL)
-  tagList(
-    singleton(tags$head(
-      tags$script(src = "sF/shinyFiles.js"),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/styles.css"
-      ),
-      tags$link(
-        rel = "stylesheet",
-        type = "text/css",
-        href = "sF/fileIcons.css"
-      )
-    )),
+  attachDependencies(
     tags$a(
       id = id,
       type = "button",
@@ -621,7 +596,8 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
       "data-val" = value,
       list(icon, as.character(label)),
       ...
-    )
+    ),
+    shinyFilesDependency()
   )
 }
 #' @rdname shinyFiles-parsers

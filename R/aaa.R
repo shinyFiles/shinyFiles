@@ -8,6 +8,24 @@
   shiny::addResourcePath("sF", system.file("www", package = "shinyFiles"))
 }
 
+#' The script and stylesheets the buttons need
+#'
+#' Attached as an HTML dependency so the page loads them once, however the
+#' buttons reach it (renderUI, bslib accordions, shinyjs::hidden() and so on).
+#'
+#' @importFrom htmltools htmlDependency
+#' @importFrom utils packageVersion
+#'
+#' @noRd
+#'
+shinyFilesDependency <- function() {
+  htmlDependency(
+    "shinyFiles", as.character(packageVersion("shinyFiles")),
+    src = "www", package = "shinyFiles",
+    script = "shinyFiles.js", stylesheet = c("styles.css", "fileIcons.css")
+  )
+}
+
 #' Drive letters and labels from WMIC
 #'
 #' WMIC is missing on newer Windows and fails on some machines (status 4110 in
