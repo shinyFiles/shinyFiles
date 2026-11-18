@@ -68,6 +68,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 5px 0;
+  /* So the path-entry dropdown can span the whole toolbar. */
+  position: relative;
 }
 .sF-modal .sF-navigation.btn-toolbar > .btn-group {
   float: none;
@@ -78,13 +80,6 @@
 .sF-modal .sF-navigation.btn-toolbar > .input-group-btn {
   display: inline-flex;
   width: auto;
-}
-.sF-modal .sF-navigation.btn-toolbar .sF-breadcrumps {
-  float: none;
-  flex: 1 1 150px;
-  width: auto;
-  min-width: 150px;
-  margin-left: 0;
 }
 .sF-navigation {
   margin-bottom: 5px;
@@ -147,12 +142,26 @@
   display: none;
 }
 
-.btn-toolbar .btn-group.sF-refresh {
-  float: right;
+/*
+  Toolbar order: buttons, then the pencil abutting the volumes select, which
+  takes the remaining width, then refresh at the far right. The flex layout
+  itself is set with the dialog sizing rules near the top of this file.
+*/
+.sF-modal .sF-navigation.btn-toolbar .sF-breadcrumps {
+  float: none;
+  flex: 1 1 150px;
+  width: auto;
+  min-width: 150px;
+  height: 30px;
+  margin: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
-.sF-modal .btn-toolbar .sF-breadcrumps {
-  float: right;
+.sF-modal .sF-navigation.btn-toolbar .btn-group.sF-refresh {
+  float: none;
+  margin-left: 5px;
+  margin-right: 0;
 }
 
 .btn-toolbar .btn-group {
@@ -516,13 +525,47 @@
 /*
     text Choice
 */
+.sF-modal .sF-navigation.btn-toolbar .btn-group.sF-textChoice {
+  position: static;
+  margin-right: 0;
+}
+.sF-textChoice > #sF-btn-textChoice {
+  height: 30px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-right: -1px;
+}
 .sF-textChoice .dropdown-menu {
-	padding: 5px;
+  padding: 5px;
+  left: 0;
+  right: 0;
+  width: auto;
+  min-width: 0;
+}
+.sF-textChoice .dropdown-menu .input-group {
+  display: flex;
+  width: 100%;
+}
+.sF-textChoice .dropdown-menu .input-group .form-control {
+  flex: 1 1 auto;
+  width: auto;
+  height: 30px;
+  float: none;
+}
+.sF-textChoice .dropdown-menu .input-group-btn {
+  display: flex;
+  width: auto;
+}
+.sF-textChoice .dropdown-menu .input-group-btn > .btn {
+  height: 30px;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 .sF-textChoice .dropdown-menu::before {
   position: absolute;
   top: -7px;
-  left: 9px;
+  left: var(--sF-caret-left, 9px);
   display: inline-block;
   border-right: 7px solid transparent;
   border-bottom: 7px solid #ccc;
@@ -533,7 +576,7 @@
 .sF-textChoice .dropdown-menu::after {
   position: absolute;
   top: -6px;
-  left: 10px;
+  left: calc(var(--sF-caret-left, 9px) + 1px);
   display: inline-block;
   border-right: 6px solid transparent;
   border-bottom: 6px solid #ffffff;
