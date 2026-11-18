@@ -21,6 +21,71 @@
   min-width: 276px;
   max-height: calc(100vh - 45px);
 }
+/*
+  Bootstrap 5 themes from bslib push every modal 10% down the window and pad
+  it more, which with the fixed-height panes below sent Cancel and Select off
+  the bottom. The dialog keeps Bootstrap 3's small top margin and is laid out
+  as a column: the header and footer always show, and on a short window the
+  body shrinks, its panes give up height, and only the body scrolls.
+*/
+.sF-modalContainer .sF-modal.modal-dialog {
+  margin-top: 30px;
+  margin-bottom: 15px;
+}
+.sF-modal .modal-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sF-modal .modal-header,
+.sF-modal .modal-footer {
+  flex: 0 0 auto;
+}
+.sF-modal .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.sF-modal .sF-fileWindow {
+  height: min(50vh, calc(100vh - 300px));
+  min-height: 120px;
+}
+.sF-modal .sF-dirWindow {
+  min-height: 0;
+}
+.sF-modal .sF-dirInfo>div {
+  height: min(48vh, calc(100vh - 300px));
+  min-height: 120px;
+}
+/*
+  The toolbar is one row: buttons at their natural size, the root drop-down
+  taking whatever width is left. A fixed width for the drop-down only fitted
+  Bootstrap 3's button sizes; with larger buttons it wrapped onto a row of its
+  own. On a narrow window the row still wraps rather than squeezing it.
+*/
+.sF-modal .sF-navigation.btn-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 0;
+}
+.sF-modal .sF-navigation.btn-toolbar > .btn-group {
+  float: none;
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+/* Bootstrap 3's input-group-btn is a 1% wide table cell; size it to its button. */
+.sF-modal .sF-navigation.btn-toolbar > .input-group-btn {
+  display: inline-flex;
+  width: auto;
+}
+.sF-modal .sF-navigation.btn-toolbar .sF-breadcrumps {
+  float: none;
+  flex: 1 1 150px;
+  width: auto;
+  min-width: 150px;
+  margin-left: 0;
+}
 .sF-navigation {
   margin-bottom: 5px;
 }

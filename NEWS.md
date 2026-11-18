@@ -7,6 +7,9 @@
   The builders now return the button tag itself instead of a `tagList()`, so
   `shinyjs::hidden()` and similar wrappers accept them. If a page links
   `sF/shinyFiles.js` itself as well, only the first copy sets up the dialogs.
+* The dialogs fit the window with Bootstrap 5 themes (`bslib`) as well as
+  Bootstrap 3: the root drop-down stays on the toolbar row, and on a short
+  window the file list shrinks so Cancel and Select stay on screen.
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

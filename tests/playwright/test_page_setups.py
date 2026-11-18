@@ -49,6 +49,13 @@ APPS = {
           shinyDirButton("outside", "Outside", "Pick"),
           shinyDirButton("inside", "Inside", "Pick"))
     """,
+    # A Bootstrap 5 theme, which pads and pushes modals down further.
+    "bslib_bs5": """
+        ui <- bslib::page_fluid(theme = bslib::bs_theme(version = 5),
+          shinyDirButton("outside", "Outside", "Pick"),
+          shinySaveButton("inside", "Inside", "Save", filetype = list(text = "txt")))
+        extra <- function(input, output, session) shinyFileSave(input, "inside", roots = roots)
+    """,
     # Buttons that only arrive later through renderUI.
     "render_ui": """
         ui <- fluidPage(uiOutput("dyn"), shinyDirButton("outside", "Outside", "Pick"))
@@ -69,9 +76,10 @@ def _start(name: str, tmp: Path):
         pkgload::load_all({str(PKG)!r}, quiet = TRUE, export_all = FALSE)
         roots <- c(r = {str(root)!r})
         extra <- function(input, output, session) NULL
+        skip <- if ({name!r} == "bslib_bs5") "inside" else character(0)
     """) + body + textwrap.dedent("""
         server <- function(input, output, session) {
-          for (id in c("outside", "inside", "hiddenbtn")) shinyDirChoose(input, id, roots = roots)
+          for (id in setdiff(c("outside", "inside", "hiddenbtn"), skip)) shinyDirChoose(input, id, roots = roots)
           extra(input, output, session)
         }
         shinyApp(ui, server)
@@ -95,7 +103,7 @@ def _start(name: str, tmp: Path):
 
 @pytest.fixture(params=list(APPS))
 def layout_app(request, page: Page):
-    pkg = {"bslib_accordion": "bslib", "shinyjs_hidden": "shinyjs"}.get(request.param)
+    pkg = {"bslib_accordion": "bslib", "bslib_bs5": "bslib", "shinyjs_hidden": "shinyjs"}.get(request.param)
     if pkg and subprocess.run([RSCRIPT, "-e", f"quit(status = !requireNamespace('{pkg}', quietly = TRUE))"]).returncode:
         pytest.skip(f"{pkg} is not installed")
     tmp = Path(tempfile.mkdtemp(prefix="sf-layout-"))
@@ -126,4 +134,32 @@ def test_the_script_loads_once_and_a_click_opens_one_dialog(layout_app: Page):
         page.click(f"#{button}")
         expect(page.locator(".sF-modalContainer")).to_have_count(1)
         page.locator(".sF-modalContainer #sF-cancelButton").click()
+        expect(page.locator(".sF-modalContainer")).to_have_count(0)
+
+
+@pytest.mark.parametrize("height", [720, 480])
+def test_the_dialog_fits_the_window_whatever_loads_first(layout_app: Page, height):
+    # The stylesheet comes as a dependency, so it may load before Bootstrap's.
+    # Its toolbar must stay on one row, with the root drop-down in it, and
+    # Cancel must stay on screen, Bootstrap 3 or 5, on a short window too.
+    page = layout_app
+    page.set_viewport_size({"width": 1280, "height": height})
+    for button in ("outside", "inside"):
+        page.click(f"#{button}")
+        modal = page.locator(".sF-modalContainer").last
+        expect(modal.locator("#sF-cancelButton")).to_be_visible()
+        # Measured once the dialog has stopped sliding in and its listing is drawn.
+        page.wait_for_function("""() => {
+          const d = $('.sF-modalContainer:visible').last().find('.modal-dialog')[0];
+          const y = d && d.getBoundingClientRect().top;
+          const settled = window.__sfLastY === y;
+          window.__sfLastY = y;
+          return settled && $('.sF-modalContainer:visible').last().find('select.sF-breadcrumps option').length > 0;
+        }""", polling=200)
+        cancel = modal.locator("#sF-cancelButton").bounding_box()
+        assert cancel["y"] + cancel["height"] <= height, f"{button}: Cancel is below the window"
+        roots = modal.locator("select.sF-breadcrumps").bounding_box()
+        refresh = modal.locator("#sF-btn-refresh").bounding_box()
+        assert abs(roots["y"] - refresh["y"]) < refresh["height"], f"{button}: the root drop-down is not on the toolbar row"
+        modal.locator("#sF-cancelButton").click()
         expect(page.locator(".sF-modalContainer")).to_have_count(0)
