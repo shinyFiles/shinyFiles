@@ -55,18 +55,64 @@ test_that("Windows falls back to PowerShell when WMIC is gone", {
   localOS("Windows", file.exists = function(...) FALSE,
           system2 = function(command, args, ...) {
             expect_equal(command, "powershell")
-            c("2", "C:\\", "E:\\", "OS", "")
+            c("C:\\|OS\r", "E:\\|", "")
           })
   v <- getVolumes()()
   expect_equal(unname(v), c("C:/", "E:/"))
-  # A drive with no label is named after its letter.
-  expect_equal(names(v), c("OS (C:)", "E:/ (E:)"))
+  # A drive with no label is named after its letter alone, as with WMIC.
+  expect_equal(names(v), c("OS (C:)", "(E:)"))
+})
+
+test_that("a drive without a label doesn't shift the labels after it (#171, #200)", {
+  # A disconnected network drive has no label; the old output listed all the
+  # names and then only the labels that existed, so later labels moved up.
+  localOS("Windows", file.exists = function(...) FALSE,
+          system2 = function(...) c("C:\\|System", "D:\\|Data", "H:\\|", "Z:\\|USBDRIVE"))
+  v <- getVolumes()()
+  expect_equal(unname(v), c("C:/", "D:/", "H:/", "Z:/"))
+  expect_equal(names(v), c("System (C:)", "Data (D:)", "(H:)", "USBDRIVE (Z:)"))
+})
+
+test_that("Windows falls back to PowerShell when WMIC fails (#193)", {
+  localOS("Windows", file.exists = function(...) TRUE,
+          system = function(command, ...) structure(character(0), status = 4110L),
+          system2 = function(...) "C:\\|OS")
+  expect_equal(getVolumes()(), c("OS (C:)" = "C:/"))
+})
+
+test_that("Windows falls back to PowerShell when WMIC lists nothing", {
+  localOS("Windows", file.exists = function(...) TRUE,
+          system = function(command, ...) c("Caption  \r", ""),
+          system2 = function(...) "C:\\|OS")
+  expect_equal(getVolumes()(), c("OS (C:)" = "C:/"))
 })
 
 test_that("Windows returns NULL when PowerShell finds no drives", {
   localOS("Windows", file.exists = function(...) FALSE,
-          system2 = function(...) "0")
+          system2 = function(...) character(0))
   expect_null(getVolumes()())
+})
+
+test_that("Windows returns NULL when PowerShell can't be run", {
+  localOS("Windows", file.exists = function(...) FALSE,
+          system2 = function(...) stop("powershell not found"))
+  expect_null(getVolumes()())
+})
+
+test_that("on a real Windows machine the system drive is listed", {
+  skip_on_cran()
+  skip_if_not(.Platform$OS.type == "windows")
+  v <- getVolumes()()
+  expect_true(toupper(paste0(Sys.getenv("SystemDrive"), "/")) %in% toupper(v))
+  expect_true(all(grepl("\\([A-Za-z]:\\)$", names(v))))
+  expect_true(all(grepl("^[A-Za-z]:/$", v)))
+})
+
+test_that("on a real Windows machine PowerShell lists the system drive", {
+  skip_on_cran()
+  skip_if_not(.Platform$OS.type == "windows")
+  v <- windowsVolumesPowershell()
+  expect_true(toupper(paste0(Sys.getenv("SystemDrive"), "/")) %in% toupper(v))
 })
 
 test_that("an unknown OS is an error", {

@@ -13,6 +13,10 @@
 * The dialogs' toolbar is tidier: the path-entry pencil sits against the
   root drop-down, refresh moves to the right end, and the path box spans the
   whole toolbar with its check button the same height as the input (#53).
+* `getVolumes()` on Windows: a drive without a label, such as a disconnected
+  network drive, no longer shifts the names of the drives after it when WMIC
+  is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
+  used instead of raising an error (#193).
 * "Create new folder" in the folder and save dialogs now only creates a folder
   with a plain name, directly inside the folder being shown and within its
   root. Names containing a path separator or `..`, existing names, and folders
