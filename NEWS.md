@@ -10,6 +10,9 @@
 * The dialogs fit the window with Bootstrap 5 themes (`bslib`) as well as
   Bootstrap 3: the root drop-down stays on the toolbar row, and on a short
   window the file list shrinks so Cancel and Select stay on screen.
+* The dialogs' toolbar is tidier: the path-entry pencil sits against the
+  root drop-down, refresh moves to the right end, and the path box spans the
+  whole toolbar with its check button the same height as the input (#53).
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.
