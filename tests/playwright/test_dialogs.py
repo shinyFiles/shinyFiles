@@ -262,3 +262,36 @@ def test_an_existing_folder_name_opens_that_folder_and_says_it_exists(app: Page)
     d.after_listing(lambda: d.find(".sF-newDir ul button").click())
     expect(app.locator(".shiny-notification-error")).to_contain_text('"folder" already exists.')
     assert d.location() == ["", "folder"]
+
+
+
+def _pick(app: Page, steps):
+    d = Dialog(app, "file").open()
+    for name, mods in steps:
+        d.click_row(name, mods)
+    d.find("#sF-selectButton").click()
+    d.expect_closed()
+    listing = [p.rsplit("/", 1)[-1] for p in app.locator("#fileOut").inner_text().split("|")]
+    picked = app.locator("#filePicked").inner_text().split("|")
+    return listing, picked
+
+
+def test_files_come_back_in_the_order_they_were_picked_when_asked(app: Page):
+    # Listed a.txt, b.csv, c.R; picked c.R, then a.txt, then b.csv (#178).
+    listing, picked = _pick(app, [("c.R", None), ("a.txt", ["ControlOrMeta"]), ("b.csv", ["ControlOrMeta"])])
+    assert listing == ["a.txt", "b.csv", "c.R"]
+    assert picked == ["c.R", "a.txt", "b.csv"]
+
+
+def test_a_shift_range_counts_from_where_it_started(app: Page):
+    # From c.R up to a.txt: picked c.R, b.csv, a.txt.
+    _, up = _pick(app, [("c.R", None), ("a.txt", ["Shift"])])
+    assert up == ["c.R", "b.csv", "a.txt"]
+    _, down = _pick(app, [("a.txt", None), ("c.R", ["Shift"])])
+    assert down == ["a.txt", "b.csv", "c.R"]
+
+
+def test_deselecting_and_reselecting_moves_a_file_to_the_end(app: Page):
+    _, picked = _pick(app, [("a.txt", None), ("b.csv", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"]),
+                            ("c.R", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"])])
+    assert picked == ["b.csv", "c.R", "a.txt"]

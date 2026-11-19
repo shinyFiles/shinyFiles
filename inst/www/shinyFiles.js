@@ -1,26 +1,36 @@
 var shinyFiles = (function () {
   // General functionality
 
+  // Each row records when it was selected, so the files can be sent back in
+  // the order the user picked them (parseFilePaths(order = "selection")).
+  var selectionCounter = 0;
+  var markPicked = function (element) {
+    selectionCounter += 1;
+    $(element).data('sF-picked', selectionCounter);
+  };
+
   var elementSelector = function (event, element, single, forceSelect) {
     var parent = $(element).parent();
     var lastSelectedElement = parent.data('lastElement');
 
     function toggleSelection(element) {
       $(element).toggleClass('selected');
+      if ($(element).hasClass('selected')) markPicked(element);
       parent.data('lastElement', element);
       toggleSelectButton($(element).closest('.sF-modalContainer'));
     }
 
     function selectElementsBetweenIndexes(indexes) {
       var els = parent.children();
-      indexes.sort(function (a, b) {
-        return a - b;
-      });
+      // A range counts as picked from the anchor towards the clicked row.
+      var from = indexes[0], to = indexes[1];
+      var step = from <= to ? 1 : -1;
 
       clearAll();
 
-      for (var i = indexes[0]; i <= indexes[1]; i++) {
+      for (var i = from; i !== to + step; i += step) {
         $(els[i]).addClass('selected');
+        markPicked(els[i]);
       }
     }
 
@@ -759,6 +769,7 @@ var shinyFiles = (function () {
         files: $.extend({}, files.files.toArray().map(function (d) {
           return d;
         })),
+        picked: files.picked,
         root: files.root
       };
       var directory = getCurrentDirectory(modal);
@@ -1334,13 +1345,16 @@ var shinyFiles = (function () {
 
   var getSelectedFiles = function (modal) {
     var directory = getCurrentDirectory(modal);
+    var rows = modal.find('.sF-fileList').children('.selected');
 
     return {
-      files: modal.find('.sF-fileList').find('.selected .sF-file-name div').map(function () {
+      files: rows.find('.sF-file-name div').map(function () {
         var dirCopy = directory.path.slice();
         dirCopy.push($(this).text());
         return [dirCopy];
       }),
+      // When each was picked, for parseFilePaths(order = "selection").
+      picked: rows.map(function () { return $(this).data('sF-picked') || 0; }).toArray(),
       root: directory.root
     };
   };

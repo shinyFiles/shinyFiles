@@ -1,5 +1,8 @@
 # shinyFiles (development version)
 
+* `parseFilePaths(order = "selection")` returns several chosen files in the
+  order the user picked them, rather than the order the dialog listed them
+  (the default, unchanged) (#178).
 * `defaultPath` and `defaultRoot` in `shinyFileChoose()`, `shinyDirChoose()` and
   `shinyFileSave()` may be functions or reactives, read each time the dialog
   opens, so one dialog can start where another's choice left off (#175).

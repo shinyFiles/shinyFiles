@@ -801,6 +801,11 @@ shinyFilesLink <- function(
 #' way of a symlink leading out of it counts as nothing chosen. Use the value
 #' given to `shinyFileChoose()`, `shinyDirChoose()` or `shinyFileSave()`.
 #'
+#' @param order For several files chosen at once: `"listing"` (the default)
+#' returns them in the order the dialog listed them; `"selection"` in the
+#' order the user picked them. A Shift-click range counts as picked from the
+#' row the range started at towards the row clicked.
+#'
 #' @return A data frame matching the format of [shiny::fileInput()]
 #'
 #' @examples
@@ -833,7 +838,8 @@ shinyFilesLink <- function(
 #'
 #' @export
 #'
-parseFilePaths <- function(roots, selection, strictRoots = FALSE) {
+parseFilePaths <- function(roots, selection, strictRoots = FALSE, order = c("listing", "selection")) {
+  order <- match.arg(order)
   roots <- if (inherits(roots, "function")) roots() else roots
   
   if (all(is.null(selection)) || all(is.na(selection)) || all(is.integer(selection)) || length(selection$files) == 0) {
@@ -843,6 +849,11 @@ parseFilePaths <- function(roots, selection, strictRoots = FALSE) {
     )
   } else {
     files <- lapply(selection$files, function(x) selectionPath(roots, selection$root, x, strictRoots))
+    picked <- suppressWarnings(as.numeric(unlist(selection$picked)))
+    if (order == "selection" && length(picked) == length(files) && !anyNA(picked)) {
+      # A stable order, so rows the browser didn't time keep the listing order.
+      files <- files[order(picked)]
+    }
     files <- path(unlist(Filter(Negate(is.null), files)))
     if (length(files) == 0) {
       return(tibble(name = character(0), size = numeric(0), type = character(0), datapath = character(0)))
