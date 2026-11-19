@@ -22,6 +22,9 @@
   root. Names containing a path separator or `..`, existing names, and folders
   outside the root are refused, and the dialog now says why instead of
   doing nothing (#17).
+* A new-folder request is handled once even when an app sets the dialog up
+  more than once, for example by calling `shinyDirChoose()` inside a
+  `reactive()`. Each extra copy used to handle it again (#169).
 * `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
   locations inside the root they name. A selection that resolves outside it, or
   names an unknown root, is treated as nothing chosen.

@@ -29,7 +29,6 @@ NULL
 shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
                           defaultPath = "", defaultRoot = NULL, allowDirCreate = TRUE, recent = 10, ...) {
   currentDir <- list()
-  lastDirCreate <- NULL
   clientId <- session$ns(id)
 
   sendDirectoryData <- function(message) {
@@ -43,13 +42,11 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
 
     # Tell the user when a new folder wasn't made, including when creating
     # folders has been disabled.
-    if (!identical(createDir, lastDirCreate)) {
+    if (newDirRequest(session, clientId, createDir)) {
       if (allowDirCreate) {
         notifyDirCreate(dirCreate(createDir$name, createDir$path, createDir$root))
-        lastDirCreate <<- createDir
       } else {
         shiny::showNotification(shiny::p("Creating directories has been disabled."), type = "error")
-        lastDirCreate <<- createDir
       }
     }
 

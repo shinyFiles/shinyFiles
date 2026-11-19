@@ -286,6 +286,26 @@ dirProber <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
   )
 }
 
+#' Whether a new-folder request still needs handling
+#'
+#' The client resends the same request with every later input change, so each
+#' is handled once. The record is kept on the session, keyed by the dialog's
+#' id, rather than in the observer: an app that calls the chooser inside a
+#' reactive sets it up again on every re-run, and each copy would otherwise
+#' handle the request, the later ones reporting the new folder as already
+#' existing (#169).
+#'
+#' @noRd
+#'
+newDirRequest <- function(session, clientId, request) {
+  if (is.null(request)) return(FALSE)
+  key <- paste0("shinyFiles-newDir-", clientId)
+  handled <- session$userData[[key]]
+  if (identical(request, handled)) return(FALSE)
+  session$userData[[key]] <- request
+  TRUE
+}
+
 #' Tell the user why a new folder wasn't created
 #'
 #' Takes what a [dirCreator()] function returned. Does nothing on success.
@@ -406,7 +426,6 @@ shinyDirChoose <- function(
   prober <- do.call(dirProber, list(...))
   currentDir <- list()
   currentFiles <- NULL
-  lastDirCreate <- NULL
   lastRequest <- NULL
   cache <- listingCache()
   probeRun <- 0
@@ -462,15 +481,13 @@ shinyDirChoose <- function(
     
     # Tell the user when a new folder wasn't made, including when creating
     # folders has been disabled.
-    if (!identical(createDir, lastDirCreate)) {
+    if (newDirRequest(session, clientId, createDir)) {
       if (allowDirCreate) {
         made <- dirCreate(createDir$name, createDir$path, createDir$root)
         notifyDirCreate(made)
         cache$clear()
-        lastDirCreate <<- createDir
       } else {
         shiny::showNotification(shiny::p('Creating directories has been disabled.'), type = 'error')
-        lastDirCreate <<- createDir
       }
     }
     
