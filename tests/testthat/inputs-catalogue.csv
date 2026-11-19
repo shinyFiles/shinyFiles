@@ -19,6 +19,7 @@ file-sort-size,file,Sort by Size,.sF-sort li.sortAttr:contains(Size),click,sorte
 file-sort-created,file,Sort by Created,.sF-sort li.sortAttr:contains(Created),click,sortedBy:Created,
 file-sort-modified,file,Sort by Modified,.sF-sort li.sortAttr:contains(Modified),click,sortedBy:Modified,
 file-sort-desc,file,Sort direction,.sF-sort li.sortDir a,click,sortDirection,Toggles ascending/descending
+file-sort-folders,file,Sort folders first,.sF-sort li.sortFoldersFirst a,click,foldersFirst,Toggles folders above files
 file-path-open,file,Path box toggle (pencil),#sF-btn-textChoice,click,pathBoxPrefilled,Pre-fills the current location
 file-path-enter,file,Path box Enter,.sF-textChoice input,key:Enter,typedPathNavigates,
 file-path-ok,file,Path box OK button,.sF-textChoice ul button,click,typedPathNavigates,
@@ -49,6 +50,7 @@ dir-sort-size,dir,Sort by Size,.sF-sort li.sortAttr:contains(Size),click,sortedB
 dir-sort-created,dir,Sort by Created,.sF-sort li.sortAttr:contains(Created),click,sortedBy:Created,
 dir-sort-modified,dir,Sort by Modified,.sF-sort li.sortAttr:contains(Modified),click,sortedBy:Modified,
 dir-sort-desc,dir,Sort direction,.sF-sort li.sortDir a,click,sortDirection,
+dir-sort-folders,dir,Sort folders first,.sF-sort li.sortFoldersFirst a,click,foldersFirst,
 dir-path-open,dir,Path box toggle (pencil),#sF-btn-textChoice,click,pathBoxPrefilled,
 dir-path-enter,dir,Path box Enter,.sF-textChoice input,key:Enter,typedPathNavigates,
 dir-path-ok,dir,Path box OK button,.sF-textChoice ul button,click,typedPathNavigates,
@@ -92,6 +94,7 @@ save-sort-size,save,Sort by Size,.sF-sort li.sortAttr:contains(Size),click,sorte
 save-sort-created,save,Sort by Created,.sF-sort li.sortAttr:contains(Created),click,sortedBy:Created,
 save-sort-modified,save,Sort by Modified,.sF-sort li.sortAttr:contains(Modified),click,sortedBy:Modified,
 save-sort-desc,save,Sort direction,.sF-sort li.sortDir a,click,sortDirection,
+save-sort-folders,save,Sort folders first,.sF-sort li.sortFoldersFirst a,click,foldersFirst,
 save-path-open,save,Path box toggle (pencil),#sF-btn-textChoice,click,pathBoxPrefilled,
 save-path-enter,save,Path box Enter,.sF-textChoice input,key:Enter,typedPathNavigates,
 save-path-ok,save,Path box OK button,.sF-textChoice ul button,click,typedPathNavigates,

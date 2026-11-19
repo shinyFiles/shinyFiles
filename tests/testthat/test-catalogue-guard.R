@@ -14,12 +14,13 @@ listControls <- sprintf("
   (function(){
     var m = %s, out = [];
     var add = function(sel){ if (m.find(sel).length) out.push(sel); };
-    m.find('button[id], select, input, li.sortAttr, li.sortDir a').each(function(){
+    m.find('button[id], select, input, li.sortAttr, li.sortDir a, li.sortFoldersFirst a').each(function(){
       var e = $(this);
       if (this.id) return out.push('#' + this.id);
       if (e.is('select.sF-breadcrumps')) return out.push('select.sF-breadcrumps');
       if (e.is('li.sortAttr')) return out.push('.sF-sort li.sortAttr:contains(' + e.text().trim() + ')');
       if (e.is('li.sortDir a')) return out.push('.sF-sort li.sortDir a');
+      if (e.is('li.sortFoldersFirst a')) return out.push('.sF-sort li.sortFoldersFirst a');
       if (e.is('.sF-textChoice input')) return out.push('.sF-textChoice input');
       if (e.is('.sF-newDir input')) return out.push('.sF-newDir input');
       if (e.is('input.sF-filename')) return out.push('input.sF-filename');

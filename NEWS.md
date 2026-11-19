@@ -1,5 +1,10 @@
 # shinyFiles (development version)
 
+* The sort menu has a new **Folders first** option, which lists folders above
+  files with each group sorted on its own, as file managers do (#197).
+* New `sort` argument for all six buttons and links sets how a dialog sorts
+  when it opens, e.g. `sort = list(by = "Modified", direction = "descending",
+  foldersFirst = TRUE)` (#91, #197).
 * The buttons and links now bring their script and stylesheets as an HTML
   dependency rather than a `singleton()` in `<head>`. A button inside a bslib
   accordion, `shinyjs::hidden()`, `renderUI()` or a Quarto document no longer

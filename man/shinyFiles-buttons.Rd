@@ -20,6 +20,7 @@ shinyFilesButton(
   icon = NULL,
   style = NULL,
   viewtype = "detail",
+  sort = NULL,
   ...
 )
 
@@ -32,6 +33,7 @@ shinyFilesLink(
   icon = NULL,
   style = NULL,
   viewtype = "detail",
+  sort = NULL,
   ...
 )
 
@@ -43,10 +45,20 @@ shinyDirButton(
   class = NULL,
   icon = NULL,
   style = NULL,
+  sort = NULL,
   ...
 )
 
-shinyDirLink(id, label, title, class = NULL, icon = NULL, style = NULL, ...)
+shinyDirLink(
+  id,
+  label,
+  title,
+  class = NULL,
+  icon = NULL,
+  style = NULL,
+  sort = NULL,
+  ...
+)
 
 shinySaveButton(
   id,
@@ -59,6 +71,7 @@ shinySaveButton(
   icon = NULL,
   style = NULL,
   viewtype = "detail",
+  sort = NULL,
   ...
 )
 
@@ -72,6 +85,7 @@ shinySaveLink(
   icon = NULL,
   style = NULL,
   viewtype = "detail",
+  sort = NULL,
   ...
 )
 }
@@ -97,6 +111,20 @@ look. The value will be pasted with 'btn-' and added as class.}
 \item{style}{Additional styling added to the button (e.g., "margin-top: 25px;")}
 
 \item{viewtype}{View type to use in the file browser. One of "detail" (default), "list", or "icon"}
+
+\item{sort}{How the dialog sorts its listing when it opens, as a list (or
+named vector) with any of:
+\itemize{
+\item \code{by}: one of "Name" (the default), "Type", "Size", "Created" or
+"Modified";
+\item \code{direction}: "ascending" (the default) or "descending";
+\item \code{foldersFirst}: \code{TRUE} to list folders above files, each group sorted on
+its own. The default is \code{FALSE}.
+}
+
+For example \code{sort = list(by = "Name", foldersFirst = TRUE)}. The user can
+still change all three in the dialog's sort menu, and their choice is kept
+for the rest of the session.}
 
 \item{...}{Named attributes to be applied to the button or link (e.g., 'onclick')}
 

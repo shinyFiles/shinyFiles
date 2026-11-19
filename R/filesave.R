@@ -114,7 +114,7 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
 #' @export
 #'
 shinySaveButton <- function(id, label, title, filename = "", filetype, buttonType = "default",
-                            class = NULL, icon = NULL, style = NULL, viewtype = "detail", ...) {
+                            class = NULL, icon = NULL, style = NULL, viewtype = "detail", sort = NULL, ...) {
   if (missing(filetype)) filetype <- NA
   filetype <- formatFiletype(filetype)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -132,6 +132,7 @@ shinySaveButton <- function(id, label, title, filename = "", filetype, buttonTyp
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -145,7 +146,7 @@ shinySaveButton <- function(id, label, title, filename = "", filetype, buttonTyp
 #' @export
 #'
 shinySaveLink <- function(id, label, title, filename = "", filetype,
-                          class = NULL, icon = NULL, style = NULL, viewtype = "detail", ...) {
+                          class = NULL, icon = NULL, style = NULL, viewtype = "detail", sort = NULL, ...) {
   if (missing(filetype)) filetype <- NA
   filetype <- formatFiletype(filetype)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -163,6 +164,7 @@ shinySaveLink <- function(id, label, title, filename = "", filetype,
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()

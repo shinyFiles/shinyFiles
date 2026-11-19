@@ -496,6 +496,35 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
   })
 }
 
+#' The data-* attributes that set a dialog's initial sort order
+#'
+#' @noRd
+#'
+sortAttributes <- function(sort) {
+  if (is.null(sort)) return(list())
+  sort <- as.list(sort)
+  known <- c("by", "direction", "foldersFirst")
+  unknown <- setdiff(names(sort), known)
+  if (length(unknown) > 0 || is.null(names(sort)) || any(!nzchar(names(sort)))) {
+    stop("`sort` takes `by`, `direction` and `foldersFirst`", call. = FALSE)
+  }
+  out <- list()
+  if (!is.null(sort$by)) {
+    by <- match.arg(as.character(sort$by), c("Name", "Type", "Size", "Created", "Modified"))
+    out[["data-sort"]] <- by
+  }
+  if (!is.null(sort$direction)) {
+    out[["data-sort-dir"]] <- match.arg(as.character(sort$direction), c("ascending", "descending"))
+  }
+  if (!is.null(sort$foldersFirst)) {
+    if (!is.logical(sort$foldersFirst) || length(sort$foldersFirst) != 1 || is.na(sort$foldersFirst)) {
+      stop("`sort$foldersFirst` must be TRUE or FALSE", call. = FALSE)
+    }
+    out[["data-folders-first"]] <- if (sort$foldersFirst) "true" else "false"
+  }
+  out
+}
+
 #' Create a button to summon a shinyFiles dialog
 #'
 #' This function adds the required html markup for the client to access the file
@@ -650,6 +679,18 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
 #' 
 #' @param viewtype View type to use in the file browser. One of "detail" (default), "list", or "icon"
 #'
+#' @param sort How the dialog sorts its listing when it opens, as a list (or
+#'   named vector) with any of:
+#'   * `by`: one of "Name" (the default), "Type", "Size", "Created" or
+#'     "Modified";
+#'   * `direction`: "ascending" (the default) or "descending";
+#'   * `foldersFirst`: `TRUE` to list folders above files, each group sorted on
+#'     its own. The default is `FALSE`.
+#'
+#'   For example `sort = list(by = "Name", foldersFirst = TRUE)`. The user can
+#'   still change all three in the dialog's sort menu, and their choice is kept
+#'   for the rest of the session.
+#'
 #' @param filetype A named list of file extensions. The name of each element
 #' gives the name of the filetype and the content of the element the possible
 #' extensions e.g. `list(picture=c('jpg', 'jpeg'))`. The first extension
@@ -676,7 +717,7 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
 #'
 shinyFilesButton <- function(
   id, label, title, multiple, buttonType="default", 
-  class=NULL, icon=NULL, style=NULL, viewtype="detail", ...
+  class=NULL, icon=NULL, style=NULL, viewtype="detail", sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -691,6 +732,7 @@ shinyFilesButton <- function(
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -706,7 +748,7 @@ shinyFilesButton <- function(
 #'
 shinyFilesLink <- function(
   id, label, title, multiple, class=NULL, icon=NULL, style=NULL, 
-  viewtype="detail", ...
+  viewtype="detail", sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -721,6 +763,7 @@ shinyFilesLink <- function(
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()

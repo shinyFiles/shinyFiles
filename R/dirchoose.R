@@ -626,7 +626,7 @@ shinyDirChoose <- function(
 #'
 shinyDirButton <- function(
   id, label, title, buttonType="default", 
-  class=NULL, icon=NULL, style=NULL, ...
+  class=NULL, icon=NULL, style=NULL, sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   attachDependencies(
@@ -638,6 +638,7 @@ shinyDirButton <- function(
       "data-title" = title,
       "data-val" = value,
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -651,7 +652,7 @@ shinyDirButton <- function(
 #'
 #' @export
 #'
-shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ...) {
+shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, sort=NULL, ...) {
   value <- restoreInput(id = id, default = NULL)
   attachDependencies(
     tags$a(
@@ -662,6 +663,7 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
       "data-title" = title,
       "data-val" = value,
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()

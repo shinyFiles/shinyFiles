@@ -9,6 +9,7 @@ Each `check` column value names a function in CHECKS below.
 from __future__ import annotations
 
 import os
+import json
 import re
 from pathlib import Path
 
@@ -168,6 +169,28 @@ def sortDirection(page, d, row, fx):
     expect(d.find(".sF-sort li.sortDir a")).to_have_class(re.compile("descending"))
     if not d.button_id.startswith("dir"):
         assert d.row_names(".sF-fileList > .sF-file") == ["c.R", "b.csv", "a.txt"]
+
+
+def foldersFirst(page, d, row, fx):
+    if d.button_id.startswith("dir"):
+        d.highlight_root()
+    rows = ".sF-dirContent > div" if d.button_id.startswith("dir") else ".sF-fileList > .sF-file, .sF-fileList > .sF-directory"
+    d.find("#sF-btn-sort").click()
+    # Type, descending, lists files before folders, so the toggle has to move them.
+    d.find(".sF-sort li.sortAttr").filter(has_text="Type").click()
+    d.find("#sF-btn-sort").click()
+    d.find(".sF-sort li.sortDir a").click()
+    before = d.row_names(rows)
+    d.find("#sF-btn-sort").click()
+    d.find(".sF-sort li.sortFoldersFirst a").click()
+    expect(d.find(".sF-sort li.sortFoldersFirst")).to_have_class(re.compile("selected"))
+    is_dir = d.js(f"return m.find({json.dumps(rows)}).map(function(){{ var f = $(this).data('sF-file'); return !!(f && f.isDir); }}).toArray();")
+    assert any(is_dir) and all(is_dir[: sum(is_dir)]), is_dir
+    assert sorted(d.row_names(rows)) == sorted(before)
+    assert page.evaluate(f"() => $('#{d.button_id}').data('foldersFirst')") is True
+    d.find("#sF-btn-sort").click()
+    d.find(".sF-sort li.sortFoldersFirst a").click()
+    assert d.row_names(rows) == before
 
 
 def pathBoxPrefilled(page, d, row, fx):
