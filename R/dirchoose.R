@@ -336,6 +336,27 @@ notifyDirCreate <- function(made) {
   invisible()
 }
 
+#' Where a folder chooser opens
+#'
+#' Splits `defaultPath` into folder names under `defaultRoot` (the first of
+#' `roots`, a named vector, if that is NULL). Returns NULL when there is no
+#' default folder, or it is missing or outside its root, so the dialog opens at
+#' the root as before.
+#'
+#' @importFrom fs path dir_exists
+#'
+#' @noRd
+#'
+defaultFolder <- function(roots, defaultRoot, defaultPath) {
+  if (!is.character(defaultPath) || length(defaultPath) != 1 || is.na(defaultPath)) return(NULL)
+  segments <- unlist(strsplit(defaultPath, "[/\\\\]"))
+  segments <- segments[nzchar(segments) & segments != "."]
+  if (length(segments) == 0 || ".." %in% segments) return(NULL)
+  root <- if (is.null(defaultRoot)) names(roots)[1] else defaultRoot
+  if (!dir_exists(path(roots[[root]], paste0(segments, collapse = "/")))) return(NULL)
+  list(root = root, path = segments)
+}
+
 #' Create a function that creates a new directory
 #'
 #' This function returns a function that can be used to create new directories
@@ -509,8 +530,21 @@ shinyDirChoose <- function(
     
     exist <- TRUE
     if (.is_not(tree)) {
-      dir <- list(tree = list(name = defaultPath, expanded = TRUE), root = defaultRoot)
-      files <- list(dir = NA, root = tree$selectedRoot)
+      # Open at defaultPath the way a typed path opens: the tree expanded down
+      # to it and it selected, so what is picked there is reported under it
+      # rather than straight under the root (#110).
+      currentRoots <- list(...)$roots
+      if (inherits(currentRoots, "function")) currentRoots <- currentRoots()
+      known <- if (isTRUE(defaultRoot %in% names(currentRoots))) defaultRoot else NULL
+      # defaultPath belongs to defaultRoot, so it isn't tried in another root.
+      start <- if (is.null(defaultRoot) || !is.null(known)) defaultFolder(currentRoots, known, defaultPath)
+      if (is.null(start)) {
+        dir <- list(tree = list(name = "", expanded = TRUE), root = known)
+        files <- list(dir = NA, root = NULL)
+      } else {
+        dir <- list(tree = expandedTreeAlong(start$path), root = start$root)
+        files <- list(dir = c("", start$path), root = start$root)
+      }
     } else {
       passedRoots <- list(...)$roots
       passedPathRoots <- if (inherits(passedRoots, "function")) passedRoots() else passedRoots
@@ -603,7 +637,7 @@ shinyDirButton <- function(
       style = style,
       "data-title" = title,
       "data-val" = value,
-      list(icon, as.character(label)),
+      list(icon, label),
       ...
     ),
     shinyFilesDependency()
@@ -627,7 +661,7 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
       style = style,
       "data-title" = title,
       "data-val" = value,
-      list(icon, as.character(label)),
+      list(icon, label),
       ...
     ),
     shinyFilesDependency()

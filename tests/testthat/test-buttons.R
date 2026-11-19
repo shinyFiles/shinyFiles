@@ -107,9 +107,24 @@ test_that("folder buttons don't carry a view, select or file type", {
   }
 })
 
-test_that("shinyDirButton coerces a non-character label", {
+test_that("shinyDirButton accepts a non-character label", {
   expect_match(as.character(shinyDirButton("d", 42, "T")), ">42<", fixed = TRUE)
   expect_match(as.character(shinyDirLink("d", 42, "T")), ">42<", fixed = TRUE)
+})
+
+test_that("a label made of tags is rendered, not escaped (#154)", {
+  # shiny.i18n's i18n$t() returns a <span> like this one.
+  label <- tags$span(class = "i18n", `data-key` = "Pick", "Pick")
+  made <- list(
+    shinyFilesButton("f", label, "T", multiple = FALSE), shinyFilesLink("f", label, "T", multiple = FALSE),
+    shinyDirButton("f", label, "T"), shinyDirLink("f", label, "T"),
+    shinySaveButton("f", label, "T"), shinySaveLink("f", label, "T")
+  )
+  for (x in made) {
+    html <- as.character(x)
+    expect_match(html, '<span class="i18n" data-key="Pick">Pick</span>', fixed = TRUE)
+    expect_no_match(html, "&lt;span", fixed = TRUE)
+  }
 })
 
 test_that("file buttons set single or multiple selection", {

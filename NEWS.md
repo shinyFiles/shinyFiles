@@ -33,6 +33,14 @@
 * `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
   locations inside the root they name. A selection that resolves outside it, or
   names an unknown root, is treated as nothing chosen.
+* `shinyDirChoose()` with `defaultPath` opens with the tree expanded down to
+  that folder and the folder selected, so choosing it, or a folder inside it,
+  reports the full path. Previously the folder was dropped and the choice was
+  reported straight under the root (#110). A `defaultPath` that is missing or
+  outside its root opens at the root, as before.
+* `shinyDirButton()` and `shinyDirLink()` no longer turn the label into text,
+  so a label built from tags (such as `shiny.i18n`'s `i18n$t()`) is rendered
+  rather than shown as escaped HTML (#154).
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.
