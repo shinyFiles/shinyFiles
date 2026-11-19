@@ -51,7 +51,7 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
     }
 
     if (.is_not(dir)) {
-      dir <- list(dir = defaultPath, root = defaultRoot)
+      dir <- list(dir = currentValue(defaultPath), root = currentValue(defaultRoot))
     } else {
       typed <- dir$typed
       dir <- list(dir = dir$path, root = dir$root)

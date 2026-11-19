@@ -535,9 +535,10 @@ shinyDirChoose <- function(
       # rather than straight under the root (#110).
       currentRoots <- list(...)$roots
       if (inherits(currentRoots, "function")) currentRoots <- currentRoots()
-      known <- if (isTRUE(defaultRoot %in% names(currentRoots))) defaultRoot else NULL
+      startRoot <- currentValue(defaultRoot)
+      known <- if (isTRUE(startRoot %in% names(currentRoots))) startRoot else NULL
       # defaultPath belongs to defaultRoot, so it isn't tried in another root.
-      start <- if (is.null(defaultRoot) || !is.null(known)) defaultFolder(currentRoots, known, defaultPath)
+      start <- if (is.null(startRoot) || !is.null(known)) defaultFolder(currentRoots, known, currentValue(defaultPath))
       if (is.null(start)) {
         dir <- list(tree = list(name = "", expanded = TRUE), root = known)
         files <- list(dir = NA, root = NULL)

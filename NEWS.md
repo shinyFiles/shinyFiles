@@ -1,5 +1,8 @@
 # shinyFiles (development version)
 
+* `defaultPath` and `defaultRoot` in `shinyFileChoose()`, `shinyDirChoose()` and
+  `shinyFileSave()` may be functions or reactives, read each time the dialog
+  opens, so one dialog can start where another's choice left off (#175).
 * The sort menu has a new **Folders first** option, which lists folders above
   files with each group sorted on its own, as file managers do (#197).
 * New `sort` argument for all six buttons and links sets how a dialog sorts

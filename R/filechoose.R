@@ -396,9 +396,13 @@ relativeSegments <- function(target, base) {
 #'
 #' @param defaultRoot The default root to use. For instance if
 #' `roots = c('wd' = '.', 'home' = '/home')` then `defaultRoot`
-#' can be either `'wd'` or `'home'`.
+#' can be either `'wd'` or `'home'`. May also be a function or reactive
+#' returning the root name, read each time the dialog opens.
 #'
-#' @param defaultPath The default relative path specified given the `defaultRoot`.
+#' @param defaultPath The default relative path specified given the
+#' `defaultRoot`. May also be a function or reactive returning the path, read
+#' each time the dialog opens, e.g. to start where another dialog's choice
+#' left off.
 #' 
 #' @param allowDirCreate Logical that indicates if creating new directories by the user is allowed.
 #'
@@ -458,7 +462,7 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
     req(input[[id]])
     dir <- input[[paste0(id, "-modal")]]
     if (all(is.null(dir)) || all(is.na(dir))) {
-      dir <- list(dir = defaultPath, root = defaultRoot)
+      dir <- list(dir = currentValue(defaultPath), root = currentValue(defaultRoot))
     } else {
       dir <- list(dir = dir$path, root = dir$root)
       # Text typed into the path box may name an absolute location in any root,

@@ -89,6 +89,15 @@ parsePowershellDrives <- function(out) {
   volumes
 }
 
+#' The value of an argument that may be given as a function or reactive
+#'
+#' `defaultPath` and `defaultRoot` can be plain values or functions (a
+#' `reactive()` is one), read each time a dialog opens.
+#'
+#' @noRd
+#'
+currentValue <- function(x) if (is.function(x)) x() else x
+
 #' check for NULL or NA
 #'
 #' @noRd
