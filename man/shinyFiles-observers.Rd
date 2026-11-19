@@ -72,7 +72,8 @@ per user and browser, persists across sessions, and is shared by all
 shinyFiles buttons on the page; only folders inside the roots of the current
 dialog are shown. Set to \code{0} to disable.}
 
-\item{...}{Arguments to be passed on to \code{\link[=fileGetter]{fileGetter()}} or \code{\link[=dirGetter]{dirGetter()}}.}
+\item{...}{Arguments to be passed on to \code{\link[=fileGetter]{fileGetter()}} or \code{\link[=dirGetter]{dirGetter()}},
+such as \code{roots}, \code{restrictions}, \code{filetypes}, \code{hidden} and \code{strictRoots}.}
 
 \item{allowDirCreate}{Logical that indicates if creating new directories by the user is allowed.}
 }

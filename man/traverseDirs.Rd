@@ -4,7 +4,7 @@
 \alias{traverseDirs}
 \title{Traverse and update a tree representing the file system}
 \usage{
-traverseDirs(tree, root, restrictions, hidden, cache = NULL)
+traverseDirs(tree, root, restrictions, hidden, cache = NULL, strictRoot = NULL)
 }
 \arguments{
 \item{tree}{A list representing the tree structure of the file system to
@@ -24,6 +24,9 @@ returned or not}
 
 \item{cache}{An optional listing cache (see \code{listingCache()}). Folders
 already listed in it are not read again.}
+
+\item{strictRoot}{The root folder when symlinks must not lead out of it (see
+\code{strictRoots} in \code{\link[=dirGetter]{dirGetter()}}), or \code{NULL} to follow them.}
 }
 \value{
 A list of the same format as 'tree', but with updated values to

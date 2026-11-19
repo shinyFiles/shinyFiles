@@ -4,7 +4,14 @@
 \alias{fileGetter}
 \title{Create a function that returns fileinfo according to the given restrictions}
 \usage{
-fileGetter(roots, restrictions, filetypes, pattern, hidden = FALSE)
+fileGetter(
+  roots,
+  restrictions,
+  filetypes,
+  pattern,
+  hidden = FALSE,
+  strictRoots = FALSE
+)
 }
 \arguments{
 \item{roots}{A named vector of absolute filepaths or a function returning a
@@ -26,6 +33,11 @@ construct a regular expression (e.g., "log.*\\\\.txt")}
 
 \item{hidden}{A logical value specifying whether hidden files should be
 returned or not}
+
+\item{strictRoots}{If \code{TRUE}, nothing outside a root can be reached through a
+symlink inside it: links that lead out of the root are left out of listings,
+and a folder reached through one is not opened. The default, \code{FALSE}, follows
+symlinks wherever they lead, as earlier versions did.}
 }
 \value{
 A function taking a single path relative to the specified root, and

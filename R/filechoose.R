@@ -31,6 +31,11 @@ NULL
 #' @param hidden A logical value specifying whether hidden files should be
 #' returned or not
 #'
+#' @param strictRoots If `TRUE`, nothing outside a root can be reached through a
+#' symlink inside it: links that lead out of the root are left out of listings,
+#' and a folder reached through one is not opened. The default, `FALSE`, follows
+#' symlinks wherever they lead, as earlier versions did.
+#'
 #' @return A function taking a single path relative to the specified root, and
 #' returns a list of files to be passed on to shiny
 #'
@@ -39,7 +44,7 @@ NULL
 #'   path_ext path_join path_norm path_has_parent
 #' @importFrom tibble as_tibble
 #'
-fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) {
+fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE, strictRoots = FALSE) {
   if (missing(filetypes)) {
     filetypes <- NULL
   } else if (is.function(filetypes)) {
@@ -68,7 +73,8 @@ fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) 
       if (Sys.info()["sysname"] != "Windows") {
         testdir <- gsub("/{2,}", "/", testdir)
       }
-      if (path_has_parent(testdir, currentRoots[root])) {
+      if (path_has_parent(testdir, currentRoots[root]) &&
+          (!isTRUE(strictRoots) || withinRealRoot(testdir, currentRoots[[root]]))) {
         fulldir <- testdir
       } else {
         fulldir <- path(currentRoots[root])
@@ -91,6 +97,11 @@ fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) 
     files <- suppressWarnings(dir_ls(fulldir, all = hidden, fail = FALSE))
     files <- dropRestricted(files, restrictions)
     fileInfo <- suppressWarnings(file_info(files, fail = FALSE))
+    if (isTRUE(strictRoots)) {
+      kept <- files %in% dropEscapingLinks(files, currentRoots[[root]], as.character(fileInfo$type))
+      files <- files[kept]
+      fileInfo <- fileInfo[kept, ]
+    }
     fileInfo$filename <- path_file(files)
     fileInfo$extension <- tolower(path_ext(files))
     # file_info() has already stat'ed every entry, so its type says which are
@@ -255,21 +266,81 @@ pathWithin <- function(target, base) {
   identical(target, base) || isTRUE(path_has_parent(target, base))
 }
 
+#' Where a path really is, following every symlink
+#'
+#' Unlike [fs::path_real()] this also works for a path that doesn't exist yet
+#' (a file about to be saved): the part that exists is resolved and the rest
+#' appended. A broken link resolves to `NA`, as it leads nowhere.
+#'
+#' @importFrom fs path path_real path_dir path_file file_exists link_exists
+#'
+#' @noRd
+#'
+realPath <- function(p) {
+  p <- as.character(p)
+  if (file_exists(p)) {
+    resolved <- try(path_real(p), silent = TRUE)
+    if (!inherits(resolved, "try-error")) return(as.character(resolved))
+  }
+  if (isTRUE(link_exists(p))) return(NA_character_)
+  parent <- path_dir(p)
+  if (identical(parent, p)) return(p)
+  up <- realPath(parent)
+  if (is.na(up)) NA_character_ else as.character(path(up, path_file(p)))
+}
+
+#' Whether a path, symlinks resolved, is inside a root, symlinks resolved
+#'
+#' @noRd
+#'
+withinRealRoot <- function(p, root) {
+  rootReal <- realPath(root)
+  target <- realPath(p)
+  !is.na(rootReal) && !is.na(target) && pathWithin(target, rootReal)
+}
+
+#' Leave out the symlinks in a listing that lead outside the root
+#'
+#' Only symlinks are resolved. Which entries are links is read from the
+#' listing's own entry types when `types` is given, so most listings need no
+#' extra filesystem calls. Broken links stay, since they lead nowhere and can't
+#' be opened.
+#'
+#' @importFrom fs is_link
+#'
+#' @noRd
+#'
+dropEscapingLinks <- function(files, root, types = NULL) {
+  if (length(files) == 0) return(files)
+  links <- if (is.null(types)) unname(is_link(files)) else types %in% "symlink"
+  if (!any(links)) return(files)
+  rootReal <- realPath(root)
+  escapes <- vapply(as.character(files[links]), function(f) {
+    target <- realPath(f)
+    !is.na(target) && !pathWithin(target, rootReal)
+  }, logical(1), USE.NAMES = FALSE)
+  keep <- rep(TRUE, length(files))
+  keep[which(links)[escapes]] <- FALSE
+  files[keep]
+}
+
 #' Turn a selection the browser sent back into a path inside its root
 #'
 #' The segments come from the client, so `..` is collapsed and the result must
-#' still lie within the root; otherwise there is no path to return.
+#' still lie within the root; otherwise there is no path to return. With
+#' `strict`, it must also lie within the root once symlinks are resolved.
 #'
 #' @return The normalised path, or `NULL` when the root is unknown or the
 #' segments lead outside it.
 #'
 #' @noRd
 #'
-selectionPath <- function(currentRoots, root, segments) {
+selectionPath <- function(currentRoots, root, segments, strict = FALSE) {
   if (!is.character(root) || length(root) != 1 || !root %in% names(currentRoots)) return(NULL)
   base <- path_norm(currentRoots[[root]])
   target <- path_norm(path(base, paste0(unlist(segments), collapse = "/")))
   if (!pathWithin(target, base)) return(NULL)
+  if (isTRUE(strict) && !withinRealRoot(target, base)) return(NULL)
   target
 }
 
@@ -338,7 +409,8 @@ relativeSegments <- function(target, base) {
 #' shinyFiles buttons on the page; only folders inside the roots of the current
 #' dialog are shown. Set to `0` to disable.
 #'
-#' @param ... Arguments to be passed on to [fileGetter()] or [dirGetter()].
+#' @param ... Arguments to be passed on to [fileGetter()] or [dirGetter()],
+#' such as `roots`, `restrictions`, `filetypes`, `hidden` and `strictRoots`.
 #'
 #' @return A reactive observer that takes care of the server side logic of the
 #' filesystem connection.
@@ -678,6 +750,10 @@ shinyFilesLink <- function(
 #'
 #' @param selection The corresponding input variable to be parsed
 #'
+#' @param strictRoots If `TRUE`, a selection that is only inside the root by
+#' way of a symlink leading out of it counts as nothing chosen. Use the value
+#' given to `shinyFileChoose()`, `shinyDirChoose()` or `shinyFileSave()`.
+#'
 #' @return A data frame matching the format of [shiny::fileInput()]
 #'
 #' @examples
@@ -710,7 +786,7 @@ shinyFilesLink <- function(
 #'
 #' @export
 #'
-parseFilePaths <- function(roots, selection) {
+parseFilePaths <- function(roots, selection, strictRoots = FALSE) {
   roots <- if (inherits(roots, "function")) roots() else roots
   
   if (all(is.null(selection)) || all(is.na(selection)) || all(is.integer(selection)) || length(selection$files) == 0) {
@@ -719,7 +795,7 @@ parseFilePaths <- function(roots, selection) {
       datapath = character(0)
     )
   } else {
-    files <- lapply(selection$files, function(x) selectionPath(roots, selection$root, x))
+    files <- lapply(selection$files, function(x) selectionPath(roots, selection$root, x, strictRoots))
     files <- path(unlist(Filter(Negate(is.null), files)))
     if (length(files) == 0) {
       return(tibble(name = character(0), size = numeric(0), type = character(0), datapath = character(0)))

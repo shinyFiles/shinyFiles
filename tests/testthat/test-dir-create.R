@@ -111,3 +111,59 @@ test_that("the folder tree can't start above its root", {
   }
   expect_equal(g(list(name = "sub", expanded = TRUE), "r")$tree$name, "sub")
 })
+
+# #169: an app that sets the dialog up inside a reactive registers it again
+# every time the reactive re-runs, so each request reaches several copies.
+twiceServer <- function(observer, roots) {
+  function(input, output, session) {
+    sent <- reactiveVal(0)
+    observeEvent(input$`f-newDir`, sent(sent() + 1), ignoreInit = TRUE)
+    observe({
+      sent()
+      observer(input, "f", roots = roots, session = session)
+    })
+  }
+}
+
+test_that("a dialog set up twice handles each new-folder request once (#169)", {
+  for (observer in list(shinyDirChoose, shinyFileSave)) {
+    base <- tempfile("sf-twice")
+    dir.create(file.path(base, "r"), recursive = TRUE)
+    roots <- c(r = file.path(base, "r"))
+    notes <- list()
+    local_mocked_bindings(
+      showNotification = function(ui, ..., type = "default") {
+        notes[[length(notes) + 1]] <<- as.character(ui)
+        invisible(NULL)
+      },
+      .package = "shiny"
+    )
+    testServer(twiceServer(observer, roots), {
+      session$setInputs(f = 1)
+      for (name in c("first", "second")) {
+        session$setInputs(`f-newDir` = list(name = name, path = list(""), root = "r", id = runif(1)))
+        session$flushReact()
+      }
+    })
+    expect_true(dir.exists(file.path(base, "r", "first")))
+    expect_true(dir.exists(file.path(base, "r", "second")))
+    expect_length(notes, 0)
+  }
+})
+
+test_that("a repeated request id is still ignored, and a new one handled", {
+  base <- tempfile("sf-repeat")
+  dir.create(file.path(base, "r"), recursive = TRUE)
+  withFileDialog(shinyDirChoose, c(r = file.path(base, "r")), function(d) {
+    d$open()
+    req <- list(name = "again", path = list(""), root = "r", id = 42)
+    d$session$setInputs(`f-newDir` = req)
+    unlink(file.path(base, "r", "again"), recursive = TRUE)
+    # Any later request re-runs the observer with the same newDir input.
+    d$refresh()
+    expect_false(dir.exists(file.path(base, "r", "again")))
+    d$session$setInputs(`f-newDir` = modifyList(req, list(id = 43)))
+    expect_true(dir.exists(file.path(base, "r", "again")))
+    expect_length(d$notifications(), 0)
+  })
+})

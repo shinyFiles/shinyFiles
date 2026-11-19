@@ -17,14 +17,30 @@
   network drive, no longer shifts the names of the drives after it when WMIC
   is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
   used instead of raising an error (#193).
+* New `strictRoots` argument for `shinyFileChoose()`, `shinyDirChoose()`,
+  `shinyFileSave()` and the `parse*Path()` functions. With
+  `strictRoots = TRUE`, a root is a hard boundary: symlinks inside it that
+  lead out are left out of the dialogs and can't be opened or chosen. The
+  default, `FALSE`, follows symlinks as before.
 * "Create new folder" in the folder and save dialogs now only creates a folder
   with a plain name, directly inside the folder being shown and within its
   root. Names containing a path separator or `..`, existing names, and folders
   outside the root are refused, and the dialog now says why instead of
   doing nothing (#17).
+* A new-folder request is handled once even when an app sets the dialog up
+  more than once, for example by calling `shinyDirChoose()` inside a
+  `reactive()`. Each extra copy used to handle it again (#169).
 * `parseFilePaths()`, `parseDirPath()` and `parseSavePath()` only return
   locations inside the root they name. A selection that resolves outside it, or
   names an unknown root, is treated as nothing chosen.
+* `shinyDirChoose()` with `defaultPath` opens with the tree expanded down to
+  that folder and the folder selected, so choosing it, or a folder inside it,
+  reports the full path. Previously the folder was dropped and the choice was
+  reported straight under the root (#110). A `defaultPath` that is missing or
+  outside its root opens at the root, as before.
+* `shinyDirButton()` and `shinyDirLink()` no longer turn the label into text,
+  so a label built from tags (such as `shiny.i18n`'s `i18n$t()`) is rendered
+  rather than shown as escaped HTML (#154).
 * `parseFilePaths()` and `parseSavePath()` no longer return an extra
   `stringsAsFactors` column. `tibble()` treats that argument as data, so every
   result has had a stray logical column since 2017.

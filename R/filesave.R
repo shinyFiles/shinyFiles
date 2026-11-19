@@ -29,7 +29,6 @@ NULL
 shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
                           defaultPath = "", defaultRoot = NULL, allowDirCreate = TRUE, recent = 10, ...) {
   currentDir <- list()
-  lastDirCreate <- NULL
   clientId <- session$ns(id)
 
   sendDirectoryData <- function(message) {
@@ -43,13 +42,11 @@ shinyFileSave <- function(input, id, updateFreq = 0, session = getSession(),
 
     # Tell the user when a new folder wasn't made, including when creating
     # folders has been disabled.
-    if (!identical(createDir, lastDirCreate)) {
+    if (newDirRequest(session, clientId, createDir)) {
       if (allowDirCreate) {
         notifyDirCreate(dirCreate(createDir$name, createDir$path, createDir$root))
-        lastDirCreate <<- createDir
       } else {
         shiny::showNotification(shiny::p("Creating directories has been disabled."), type = "error")
-        lastDirCreate <<- createDir
       }
     }
 
@@ -202,7 +199,7 @@ formatFiletype <- function(filetype) {
 #'
 #' @export
 #'
-parseSavePath <- function(roots, selection) {
+parseSavePath <- function(roots, selection, strictRoots = FALSE) {
   if (all(is.null(selection))) {
     return(tibble(
       name = character(), type = character(),
@@ -216,7 +213,7 @@ parseSavePath <- function(roots, selection) {
   if (all(is.integer(selection))) {
     tibble(name = character(0), type = character(0), datapath = character(0))
   } else {
-    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name))
+    savefile <- selectionPath(currentRoots, selection$root, c(selection$path, selection$name), strictRoots)
     # The file goes into a folder within the root, so the name is a plain name.
     if (is.null(savefile) || grepl("[/\\\\]", paste(unlist(selection$name), collapse = ""))) {
       return(tibble(name = character(0), type = character(0), datapath = character(0)))
