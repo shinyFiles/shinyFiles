@@ -17,6 +17,9 @@
   network drive, no longer shifts the names of the drives after it when WMIC
   is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
   used instead of raising an error (#193).
+* `getVolumes()` on Windows asks PowerShell first and uses WMIC only as a
+  fallback. WMIC is removed from current Windows, and where it remains it
+  could take tens of seconds with a disconnected network drive (#199).
 * New `strictRoots` argument for `shinyFileChoose()`, `shinyDirChoose()`,
   `shinyFileSave()` and the `parse*Path()` functions. With
   `strictRoots = TRUE`, a root is a hard boundary: symlinks inside it that

@@ -1,7 +1,7 @@
 # Checks getVolumes() against real Windows drives: a labelled fixed disk, a
 # subst drive, a mapped network drive that is then disconnected (#171, #200),
-# and a WMIC that fails (#193). Runs when that code changes, or from the
-# Actions tab.
+# and that a slow or failing WMIC is never waited on (#193, #199). Runs when
+# that code changes, or from the Actions tab.
 on:
   workflow_dispatch:
   push:
@@ -90,8 +90,8 @@ jobs:
             skip_if(is.null(wmic), "WMIC is not installed on this image")
             expect_setequal(unname(wmic), unname(expected))
           })
-          test_that("a WMIC that fails falls back to PowerShell (#193)", {
-            local_mocked_bindings(system = function(...) structure(character(0), status = 4110L), .package = "base")
+          test_that("PowerShell is used, so a slow or failing WMIC is never waited on (#193, #199)", {
+            local_mocked_bindings(system = function(...) stop("WMIC should not be run"), .package = "base")
             v <- getVolumes()()
             expect_setequal(unname(v), unname(expected))
             expect_equal(names(v)[v == "V:/"], "SFLABEL (V:)")
