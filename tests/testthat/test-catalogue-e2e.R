@@ -257,6 +257,30 @@ checks <- list(
     expect_true(js(app, "return m.find('.sF-sort li.sortDir a').hasClass('ascending');"))
   },
 
+  foldersFirst = function(app, row, dialog) {
+    if (dialog == "dir") highlightFirstFolder(app)
+    rows <- function() rowNames(app, if (dialog == "dir") ".sF-dirContent > div" else ".sF-fileList > .sF-file, .sF-fileList > .sF-directory")
+    # Sort by Size: folders count as size -1, so they already lead; use Type
+    # descending, which puts files first, to see the toggle move them.
+    run(app, "m.find('.sF-sort li.sortAttr').filter(function(){ return $(this).text().trim() === 'Type'; }).trigger('click');")
+    run(app, "m.find('.sF-sort li.sortDir').trigger('click');")
+    before <- rows()
+    run(app, "m.find('.sF-sort li.sortFoldersFirst').trigger('click');")
+    expect_true(js(app, "return m.find('.sF-sort li.sortFoldersFirst').hasClass('selected');"))
+    after <- rows()
+    isDir <- unlist(app$get_js(sprintf(
+      "$('.sF-modalContainer:visible').last().find(%s).map(function(){ var f = $(this).data('sF-file'); return !!(f && f.isDir); }).toArray()",
+      jsString(if (dialog == "dir") ".sF-dirContent > div" else ".sF-fileList > .sF-file, .sF-fileList > .sF-directory")
+    )))
+    expect_true(any(isDir), label = "the listing has folders")
+    expect_true(all(isDir[seq_len(sum(isDir))]), label = "folders come first")
+    expect_setequal(after, before)
+    expect_true(isTRUE(app$get_js(sprintf("$('#%s').data('foldersFirst')", dialog))))
+    run(app, "m.find('.sF-sort li.sortFoldersFirst').trigger('click');")
+    expect_false(js(app, "return m.find('.sF-sort li.sortFoldersFirst').hasClass('selected');"))
+    expect_equal(rows(), before)
+  },
+
   pathBoxPrefilled = function(app, row, dialog) {
     run(app, "m.find('.sF-textChoice').trigger('click');")
     expect_true(js(app, "return m.find('.sF-textChoice').hasClass('open');"))

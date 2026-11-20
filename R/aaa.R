@@ -28,8 +28,8 @@ shinyFilesDependency <- function() {
 
 #' Drive letters and labels from WMIC
 #'
-#' WMIC is missing on newer Windows and fails on some machines (status 4110 in
-#' #193); either way this returns NULL so PowerShell can be tried instead.
+#' Only used when PowerShell gives nothing. WMIC is missing on newer Windows and
+#' fails on some machines (status 4110 in #193); either way this returns NULL.
 #'
 #' @noRd
 #'
@@ -88,6 +88,15 @@ parsePowershellDrives <- function(out) {
   names(volumes) <- paste0(ifelse(label == "", "", paste0(label, " ")), "(", sub("/$", "", volumes), ")")
   volumes
 }
+
+#' The value of an argument that may be given as a function or reactive
+#'
+#' `defaultPath` and `defaultRoot` can be plain values or functions (a
+#' `reactive()` is one), read each time a dialog opens.
+#'
+#' @noRd
+#'
+currentValue <- function(x) if (is.function(x)) x() else x
 
 #' check for NULL or NA
 #'
@@ -158,8 +167,11 @@ getVolumes <- function(exclude) {
         volumes <- c(volumes, media)
       }
     } else if (osSystem == "Windows") {
-      volumes <- windowsVolumesWmic()
-      if (is.null(volumes)) volumes <- windowsVolumesPowershell()
+      # PowerShell first: WMIC is removed from current Windows, and where it
+      # remains it can wait tens of seconds on a disconnected network drive
+      # (#199). It stays as a fallback for machines without PowerShell.
+      volumes <- windowsVolumesPowershell()
+      if (is.null(volumes)) volumes <- windowsVolumesWmic()
       if (is.null(volumes)) return(NULL)
     } else {
       stop("unsupported OS")

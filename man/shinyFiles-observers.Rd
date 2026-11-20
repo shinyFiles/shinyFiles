@@ -61,9 +61,13 @@ shown only when a shinyFiles button is clicked again}
 
 \item{defaultRoot}{The default root to use. For instance if
 \code{roots = c('wd' = '.', 'home' = '/home')} then \code{defaultRoot}
-can be either \code{'wd'} or \code{'home'}.}
+can be either \code{'wd'} or \code{'home'}. May also be a function or reactive
+returning the root name, read each time the dialog opens.}
 
-\item{defaultPath}{The default relative path specified given the \code{defaultRoot}.}
+\item{defaultPath}{The default relative path specified given the
+\code{defaultRoot}. May also be a function or reactive returning the path, read
+each time the dialog opens, e.g. to start where another dialog's choice
+left off.}
 
 \item{recent}{The number of recently used folders to offer under "Recent" in
 the volume dropdown. A folder is remembered when a selection or save is

@@ -262,3 +262,62 @@ def test_an_existing_folder_name_opens_that_folder_and_says_it_exists(app: Page)
     d.after_listing(lambda: d.find(".sF-newDir ul button").click())
     expect(app.locator(".shiny-notification-error")).to_contain_text('"folder" already exists.')
     assert d.location() == ["", "folder"]
+
+
+
+def _pick(app: Page, steps):
+    d = Dialog(app, "file").open()
+    # The outputs keep the last choice, so wait for these to change.
+    before = app.evaluate("() => [$('#fileOut').text(), $('#filePicked').text()]")
+    for name, mods in steps:
+        d.click_row(name, mods)
+    d.find("#sF-selectButton").click()
+    d.expect_closed()
+    # The outputs are redrawn by the server after the dialog closes.
+    app.wait_for_function(
+        "b => { var o = $('#fileOut').text(), p = $('#filePicked').text();"
+        " return o !== '' && p !== '' && (o !== b[0] || p !== b[1]) && !$('html').hasClass('shiny-busy'); }",
+        arg=before,
+    )
+    listing = [p.rsplit("/", 1)[-1] for p in app.locator("#fileOut").inner_text().split("|")]
+    picked = app.locator("#filePicked").inner_text().split("|")
+    return listing, picked
+
+
+def test_files_come_back_in_the_order_they_were_picked_when_asked(app: Page):
+    # Listed a.txt, b.csv, c.R; picked c.R, then a.txt, then b.csv (#178).
+    listing, picked = _pick(app, [("c.R", None), ("a.txt", ["ControlOrMeta"]), ("b.csv", ["ControlOrMeta"])])
+    assert listing == ["a.txt", "b.csv", "c.R"]
+    assert picked == ["c.R", "a.txt", "b.csv"]
+
+
+def test_a_shift_range_counts_from_where_it_started(app: Page):
+    # From c.R up to a.txt: picked c.R, b.csv, a.txt.
+    _, up = _pick(app, [("c.R", None), ("a.txt", ["Shift"])])
+    assert up == ["c.R", "b.csv", "a.txt"]
+    _, down = _pick(app, [("a.txt", None), ("c.R", ["Shift"])])
+    assert down == ["a.txt", "b.csv", "c.R"]
+
+
+def test_deselecting_and_reselecting_moves_a_file_to_the_end(app: Page):
+    _, picked = _pick(app, [("a.txt", None), ("b.csv", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"]),
+                            ("c.R", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"])])
+    assert picked == ["b.csv", "c.R", "a.txt"]
+
+
+
+def test_an_unknown_creation_time_is_left_blank(app: Page):
+    # Some filesystems (NFS among them) record no creation time; fs reports it
+    # as 0, which used to be shown as Dec 31, 1969 or Jan 1, 1970. Where the
+    # filesystem does record it, it must still be shown.
+    d = Dialog(app, "file").open()
+    rows = d.js("""return m.find('.sF-fileList .sF-file').map(function () {
+      return [[$(this).data('sF-file').cTime.getTime(), $(this).find('.sF-file-cTime').text(),
+               $(this).find('.sF-file-mTime').text()]]; }).toArray();""")
+    assert rows, rows
+    for when, created, modified in rows:
+        assert modified != ""
+        if when == 0:
+            assert created == "", (when, created)
+        else:
+            assert created != "" and "1969" not in created and "1970" not in created, (when, created)

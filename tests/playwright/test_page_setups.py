@@ -56,6 +56,11 @@ APPS = {
           shinySaveButton("inside", "Inside", "Save", filetype = list(text = "txt")))
         extra <- function(input, output, session) shinyFileSave(input, "inside", roots = roots)
     """,
+    # A file name far wider than the folder dialog's content pane (#188).
+    "long_names": """
+        writeLines("x", file.path(roots[["r"]], paste0(strrep("a_long_file_name_", 6), ".txt")))
+        ui <- fluidPage(shinyDirButton("outside", "Outside", "Pick"), shinyDirButton("inside", "Inside", "Pick"))
+    """,
     # Buttons that only arrive later through renderUI.
     "render_ui": """
         ui <- fluidPage(uiOutput("dyn"), shinyDirButton("outside", "Outside", "Pick"))
@@ -163,3 +168,27 @@ def test_the_dialog_fits_the_window_whatever_loads_first(layout_app: Page, heigh
         assert abs(roots["y"] - refresh["y"]) < refresh["height"], f"{button}: the root drop-down is not on the toolbar row"
         modal.locator("#sF-cancelButton").click()
         expect(page.locator(".sF-modalContainer")).to_have_count(0)
+
+
+def test_a_long_file_name_is_shown_in_full_and_the_pane_scrolls(layout_app: Page):
+    # #188: the folder dialog's content pane cut long names off with "...".
+    page = layout_app
+    if page.url_layout != "long_names":
+        pytest.skip("only for the long-names layout")
+    page.click("#inside")
+    modal = page.locator(".sF-modalContainer").last
+    modal.locator(".sF-dirList .sF-directory.root > .sF-file-name").first.click()
+    page.wait_for_function(
+        "() => $('.sF-modalContainer:visible').last().find('.sF-dirContent > div').length > 1")
+    m = page.evaluate("""() => {
+      const c = $('.sF-modalContainer:visible').last().find('.sF-dirContent');
+      const pane = c.parent()[0];
+      const name = c.find('> div > div:nth-child(2) > div').filter(function () {
+        return /a_long_file_name_/.test($(this).text()); })[0];
+      return { clipped: name.scrollWidth > name.clientWidth + 1,
+               scrolls: pane.scrollWidth > pane.clientWidth,
+               rowHeight: Math.round(name.closest('.sF-dirContent > div').getBoundingClientRect().height) };
+    }""")
+    assert not m["clipped"], m
+    assert m["scrolls"], m
+    assert m["rowHeight"] < 30, m

@@ -396,9 +396,13 @@ relativeSegments <- function(target, base) {
 #'
 #' @param defaultRoot The default root to use. For instance if
 #' `roots = c('wd' = '.', 'home' = '/home')` then `defaultRoot`
-#' can be either `'wd'` or `'home'`.
+#' can be either `'wd'` or `'home'`. May also be a function or reactive
+#' returning the root name, read each time the dialog opens.
 #'
-#' @param defaultPath The default relative path specified given the `defaultRoot`.
+#' @param defaultPath The default relative path specified given the
+#' `defaultRoot`. May also be a function or reactive returning the path, read
+#' each time the dialog opens, e.g. to start where another dialog's choice
+#' left off.
 #' 
 #' @param allowDirCreate Logical that indicates if creating new directories by the user is allowed.
 #'
@@ -458,7 +462,7 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
     req(input[[id]])
     dir <- input[[paste0(id, "-modal")]]
     if (all(is.null(dir)) || all(is.na(dir))) {
-      dir <- list(dir = defaultPath, root = defaultRoot)
+      dir <- list(dir = currentValue(defaultPath), root = currentValue(defaultRoot))
     } else {
       dir <- list(dir = dir$path, root = dir$root)
       # Text typed into the path box may name an absolute location in any root,
@@ -494,6 +498,35 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
       sendDirectoryData("shinyFiles-refresh")
     }
   })
+}
+
+#' The data-* attributes that set a dialog's initial sort order
+#'
+#' @noRd
+#'
+sortAttributes <- function(sort) {
+  if (is.null(sort)) return(list())
+  sort <- as.list(sort)
+  known <- c("by", "direction", "foldersFirst")
+  unknown <- setdiff(names(sort), known)
+  if (length(unknown) > 0 || is.null(names(sort)) || any(!nzchar(names(sort)))) {
+    stop("`sort` takes `by`, `direction` and `foldersFirst`", call. = FALSE)
+  }
+  out <- list()
+  if (!is.null(sort$by)) {
+    by <- match.arg(as.character(sort$by), c("Name", "Type", "Size", "Created", "Modified"))
+    out[["data-sort"]] <- by
+  }
+  if (!is.null(sort$direction)) {
+    out[["data-sort-dir"]] <- match.arg(as.character(sort$direction), c("ascending", "descending"))
+  }
+  if (!is.null(sort$foldersFirst)) {
+    if (!is.logical(sort$foldersFirst) || length(sort$foldersFirst) != 1 || is.na(sort$foldersFirst)) {
+      stop("`sort$foldersFirst` must be TRUE or FALSE", call. = FALSE)
+    }
+    out[["data-folders-first"]] <- if (sort$foldersFirst) "true" else "false"
+  }
+  out
 }
 
 #' Create a button to summon a shinyFiles dialog
@@ -650,6 +683,18 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
 #' 
 #' @param viewtype View type to use in the file browser. One of "detail" (default), "list", or "icon"
 #'
+#' @param sort How the dialog sorts its listing when it opens, as a list (or
+#'   named vector) with any of:
+#'   * `by`: one of "Name" (the default), "Type", "Size", "Created" or
+#'     "Modified";
+#'   * `direction`: "ascending" (the default) or "descending";
+#'   * `foldersFirst`: `TRUE` to list folders above files, each group sorted on
+#'     its own. The default is `FALSE`.
+#'
+#'   For example `sort = list(by = "Name", foldersFirst = TRUE)`. The user can
+#'   still change all three in the dialog's sort menu, and their choice is kept
+#'   for the rest of the session.
+#'
 #' @param filetype A named list of file extensions. The name of each element
 #' gives the name of the filetype and the content of the element the possible
 #' extensions e.g. `list(picture=c('jpg', 'jpeg'))`. The first extension
@@ -676,7 +721,7 @@ shinyFileChoose <- function(input, id, updateFreq = 0, session = getSession(),
 #'
 shinyFilesButton <- function(
   id, label, title, multiple, buttonType="default", 
-  class=NULL, icon=NULL, style=NULL, viewtype="detail", ...
+  class=NULL, icon=NULL, style=NULL, viewtype="detail", sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -691,6 +736,7 @@ shinyFilesButton <- function(
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -706,7 +752,7 @@ shinyFilesButton <- function(
 #'
 shinyFilesLink <- function(
   id, label, title, multiple, class=NULL, icon=NULL, style=NULL, 
-  viewtype="detail", ...
+  viewtype="detail", sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   viewtype <- if (length(viewtype) > 0 && viewtype %in% c("detail", "list", "icon")) viewtype else "detail"
@@ -721,6 +767,7 @@ shinyFilesLink <- function(
       "data-val" = value,
       "data-view" = paste0("sF-btn-", viewtype),
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -754,6 +801,11 @@ shinyFilesLink <- function(
 #' way of a symlink leading out of it counts as nothing chosen. Use the value
 #' given to `shinyFileChoose()`, `shinyDirChoose()` or `shinyFileSave()`.
 #'
+#' @param order For several files chosen at once: `"listing"` (the default)
+#' returns them in the order the dialog listed them; `"selection"` in the
+#' order the user picked them. A Shift-click range counts as picked from the
+#' row the range started at towards the row clicked.
+#'
 #' @return A data frame matching the format of [shiny::fileInput()]
 #'
 #' @examples
@@ -786,7 +838,8 @@ shinyFilesLink <- function(
 #'
 #' @export
 #'
-parseFilePaths <- function(roots, selection, strictRoots = FALSE) {
+parseFilePaths <- function(roots, selection, strictRoots = FALSE, order = c("listing", "selection")) {
+  order <- match.arg(order)
   roots <- if (inherits(roots, "function")) roots() else roots
   
   if (all(is.null(selection)) || all(is.na(selection)) || all(is.integer(selection)) || length(selection$files) == 0) {
@@ -796,6 +849,11 @@ parseFilePaths <- function(roots, selection, strictRoots = FALSE) {
     )
   } else {
     files <- lapply(selection$files, function(x) selectionPath(roots, selection$root, x, strictRoots))
+    picked <- suppressWarnings(as.numeric(unlist(selection$picked)))
+    if (order == "selection" && length(picked) == length(files) && !anyNA(picked)) {
+      # A stable order, so rows the browser didn't time keep the listing order.
+      files <- files[order(picked)]
+    }
     files <- path(unlist(Filter(Negate(is.null), files)))
     if (length(files) == 0) {
       return(tibble(name = character(0), size = numeric(0), type = character(0), datapath = character(0)))

@@ -1,26 +1,47 @@
 var shinyFiles = (function () {
   // General functionality
 
+  // Each row records when it was selected, so the files can be sent back in
+  // the order the user picked them (parseFilePaths(order = "selection")).
+  var selectionCounter = 0;
+  var markPicked = function (element) {
+    selectionCounter += 1;
+    $(element).data('sF-picked', selectionCounter);
+  };
+
+  // Touch screens have no double-click (iOS uses a double tap to zoom), so a
+  // tap on a folder that is already selected opens it (#36). Whether a click
+  // came from a finger is read from the pointer event that started it.
+  var lastPointerType = 'mouse';
+  $(document).on('pointerdown', function (e) {
+    lastPointerType = e.originalEvent ? e.originalEvent.pointerType : 'mouse';
+  });
+  var tappedSelectedFolder = function (element) {
+    return lastPointerType === 'touch' && $(element).hasClass('sF-directory') && $(element).hasClass('selected');
+  };
+
   var elementSelector = function (event, element, single, forceSelect) {
     var parent = $(element).parent();
     var lastSelectedElement = parent.data('lastElement');
 
     function toggleSelection(element) {
       $(element).toggleClass('selected');
+      if ($(element).hasClass('selected')) markPicked(element);
       parent.data('lastElement', element);
       toggleSelectButton($(element).closest('.sF-modalContainer'));
     }
 
     function selectElementsBetweenIndexes(indexes) {
       var els = parent.children();
-      indexes.sort(function (a, b) {
-        return a - b;
-      });
+      // A range counts as picked from the anchor towards the clicked row.
+      var from = indexes[0], to = indexes[1];
+      var step = from <= to ? 1 : -1;
 
       clearAll();
 
-      for (var i = indexes[0]; i <= indexes[1]; i++) {
+      for (var i = from; i !== to + step; i += step) {
         $(els[i]).addClass('selected');
+        markPicked(els[i]);
       }
     }
 
@@ -582,6 +603,9 @@ var shinyFiles = (function () {
   };
 
   var formatDate = function (date) {
+    // A time the filesystem doesn't record (often the creation time, on NFS
+    // and some others) arrives as 0; show nothing rather than 1 Jan 1970.
+    if (!date || isNaN(date.getTime()) || date.getTime() === 0) return '';
     var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -611,6 +635,8 @@ var shinyFiles = (function () {
     var type = $(button).hasClass('shinyDirectories') ? 'directory' : 'file';
     var sort = $(button).data('sort') || 'Name';
     var sortDir = $(button).data('sortDir') || 'ascending';
+    // data-folders-first="true" from the R side; jQuery parses it to a boolean.
+    var foldersFirst = $(button).data('foldersFirst') === true;
 
     if (type == 'file') {
       var back = $(button).data('back') || [];
@@ -630,7 +656,8 @@ var shinyFiles = (function () {
       }
     }
     $(button).data('sort', sort)
-      .data('sortDir', sortDir);
+      .data('sortDir', sortDir)
+      .data('foldersFirst', foldersFirst);
   };
 
   var setDisabledButtons = function (button, modal) {
@@ -661,7 +688,7 @@ var shinyFiles = (function () {
     modal.find('#sF-selectButton').prop('disabled', !filesSelected(modal));
   };
 
-  var sortFiles = function (modal, attribute, direction) {
+  var sortFiles = function (modal, attribute, direction, foldersFirst) {
     var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 'file';
     var fileList;
     if (type == 'file') {
@@ -678,7 +705,20 @@ var shinyFiles = (function () {
       return $(elem).data('sF-file') ? $(elem).data('sF-file').name : '';
     }, direction == 'descending');
 
-    if (attribute == 'Name') return fileList.prepend(header);
+    // Folders above files, each group keeping the order just set. A stable
+    // sort on the group alone does that, so it runs after the chosen sort.
+    var groupFolders = function () {
+      if (!foldersFirst) return;
+      var rows = fileList.children().toArray();
+      var folders = rows.filter(function (r) { var f = $(r).data('sF-file'); return f && f.isDir; });
+      var files = rows.filter(function (r) { var f = $(r).data('sF-file'); return !(f && f.isDir); });
+      fileList.append(folders).append(files);
+    };
+
+    if (attribute == 'Name') {
+      groupFolders();
+      return fileList.prepend(header);
+    }
 
     switch (attribute) {
       case 'Type':
@@ -702,6 +742,7 @@ var shinyFiles = (function () {
         }, direction == 'descending');
         break;
     }
+    groupFolders();
     fileList.prepend(header);
   }
 
@@ -742,6 +783,7 @@ var shinyFiles = (function () {
         files: $.extend({}, files.files.toArray().map(function (d) {
           return d;
         })),
+        picked: files.picked,
         root: files.root
       };
       var directory = getCurrentDirectory(modal);
@@ -970,6 +1012,10 @@ var shinyFiles = (function () {
                   $('<li>').addClass('sortDir').append(
                     $('<a>', { href: '#', text: 'Sort direction' }).addClass($(button).data('sortDir')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-down')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-up'))
                   )
+                ).append(
+                  $('<li>').addClass('sortFoldersFirst').append(
+                    $('<a>', { href: '#', text: 'Folders first' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
+                  ).toggleClass('selected', $(button).data('foldersFirst') === true)
                 )
               )
             ).append(
@@ -1061,12 +1107,17 @@ var shinyFiles = (function () {
         $(this).siblings('.sortAttr').removeClass('selected');
         $(this).toggleClass('selected', true);
 
-        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
       })
       .on('click', 'li.sortDir', function () {
         $(this).find('a').toggleClass('ascending').toggleClass('descending')
 
-        $(modal).trigger('fileSort', [$(this).parent().find('.selected a').text(), $(this).find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
+      })
+      .on('click', 'li.sortFoldersFirst', function () {
+        $(this).toggleClass('selected');
+
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).hasClass('selected')])
       })
 
     // Text Choice
@@ -1128,6 +1179,10 @@ var shinyFiles = (function () {
         selectFiles(button, modal);
       })
       .on('click', '.sF-file, .sF-directory', function (event) {
+        if (tappedSelectedFolder(this)) {
+          openDir(button, modal, this);
+          return false;
+        }
         var single = $(button).data('selecttype') == 'single';
         elementSelector(event, this, single, false);
         toggleSelectButton(modal);
@@ -1139,9 +1194,9 @@ var shinyFiles = (function () {
       .on('change', function () {
         setDisabledButtons(button, modal);
       })
-      .on('fileSort', function (elem, attribute, direction) {
-        $(button).data('sort', attribute).data('sortDir', direction);
-        sortFiles(modal, attribute, direction);
+      .on('fileSort', function (elem, attribute, direction, foldersFirst) {
+        $(button).data('sort', attribute).data('sortDir', direction).data('foldersFirst', foldersFirst);
+        sortFiles(modal, attribute, direction, foldersFirst);
       });
 
 
@@ -1300,7 +1355,7 @@ var shinyFiles = (function () {
     setFolderState(modal, data.writable, data.exist, data.allowDirCreate);
     toggleSelectButton(modal);
     // A new listing is drawn in name order; keep the order the user chose.
-    sortFiles(modal, $(element).data('sort'), $(element).data('sortDir'));
+    sortFiles(modal, $(element).data('sort'), $(element).data('sortDir'), $(element).data('foldersFirst'));
 
     modal.data('currentData', data);
     $(modal).trigger('change');
@@ -1308,13 +1363,16 @@ var shinyFiles = (function () {
 
   var getSelectedFiles = function (modal) {
     var directory = getCurrentDirectory(modal);
+    var rows = modal.find('.sF-fileList').children('.selected');
 
     return {
-      files: modal.find('.sF-fileList').find('.selected .sF-file-name div').map(function () {
+      files: rows.find('.sF-file-name div').map(function () {
         var dirCopy = directory.path.slice();
         dirCopy.push($(this).text());
         return [dirCopy];
       }),
+      // When each was picked, for parseFilePaths(order = "selection").
+      picked: rows.map(function () { return $(this).data('sF-picked') || 0; }).toArray(),
       root: directory.root
     };
   };
@@ -1537,6 +1595,10 @@ var shinyFiles = (function () {
                   $('<li>').addClass('sortDir').append(
                     $('<a>', { href: '#', text: 'Sort direction' }).addClass($(button).data('sortDir')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-down')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-up'))
                   )
+                ).append(
+                  $('<li>').addClass('sortFoldersFirst').append(
+                    $('<a>', { href: '#', text: 'Folders first' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
+                  ).toggleClass('selected', $(button).data('foldersFirst') === true)
                 )
               )
             ).append(
@@ -1653,12 +1715,17 @@ var shinyFiles = (function () {
         $(this).siblings('.sortAttr').removeClass('selected');
         $(this).toggleClass('selected', true);
 
-        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
       })
       .on('click', 'li.sortDir', function () {
         $(this).find('a').toggleClass('ascending').toggleClass('descending')
 
-        $(modal).trigger('fileSort', [$(this).parent().find('.selected a').text(), $(this).find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
+      })
+      .on('click', 'li.sortFoldersFirst', function () {
+        $(this).toggleClass('selected');
+
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).hasClass('selected')])
       })
 
     // Refresh
@@ -1679,6 +1746,10 @@ var shinyFiles = (function () {
         toggleSelectButton(modal);
       })
       .on('click', '.sF-file, .sF-directory', function (event) {
+        if (tappedSelectedFolder(this)) {
+          openDir(button, modal, this);
+          return false;
+        }
         elementSelector(event, this, true, false);
         if (!$(this).hasClass('sF-directory')) {
           var name = $(this).find('.sF-file-name>div').text();
@@ -1777,9 +1848,9 @@ var shinyFiles = (function () {
         setDisabledButtons(button, modal);
         evalFilename(modal);
       })
-      .on('fileSort', function (elem, attribute, direction) {
-        $(button).data('sort', attribute).data('sortDir', direction);
-        sortFiles(modal, attribute, direction);
+      .on('fileSort', function (elem, attribute, direction, foldersFirst) {
+        $(button).data('sort', attribute).data('sortDir', direction).data('foldersFirst', foldersFirst);
+        sortFiles(modal, attribute, direction, foldersFirst);
       });
 
 
@@ -2014,6 +2085,10 @@ var shinyFiles = (function () {
                   $('<li>').addClass('sortDir').append(
                     $('<a>', { href: '#', text: 'Sort direction' }).addClass($(button).data('sortDir')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-down')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-up'))
                   )
+                ).append(
+                  $('<li>').addClass('sortFoldersFirst').append(
+                    $('<a>', { href: '#', text: 'Folders first' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
+                  ).toggleClass('selected', $(button).data('foldersFirst') === true)
                 )
               )
             ).append(
@@ -2210,11 +2285,15 @@ var shinyFiles = (function () {
       .on('click', 'li.sortAttr', function () {
         $(this).siblings('.sortAttr').removeClass('selected');
         $(this).toggleClass('selected', true);
-        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
       })
       .on('click', 'li.sortDir', function () {
         $(this).find('a').toggleClass('ascending').toggleClass('descending')
-        $(modal).trigger('fileSort', [$(this).parent().find('.selected a').text(), $(this).find('a').attr('class')])
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).find('a').attr('class'), $(this).siblings('.sortFoldersFirst').hasClass('selected')])
+      })
+      .on('click', 'li.sortFoldersFirst', function () {
+        $(this).toggleClass('selected');
+        $(modal).trigger('fileSort', [$(this).parent().find('.sortAttr.selected a').text(), $(this).siblings('.sortDir').find('a').attr('class'), $(this).hasClass('selected')])
       })
 
     // Set volume
@@ -2247,9 +2326,9 @@ var shinyFiles = (function () {
       .on('change', function () {
         setDisabledButtons(button, modal);
       })
-      .on('fileSort', function (elem, attribute, direction) {
-        $(button).data('sort', attribute).data('sortDir', direction);
-        sortFiles(modal, attribute, direction);
+      .on('fileSort', function (elem, attribute, direction, foldersFirst) {
+        $(button).data('sort', attribute).data('sortDir', direction).data('foldersFirst', foldersFirst);
+        sortFiles(modal, attribute, direction, foldersFirst);
       });
 
     // Attach relevant data
@@ -2345,7 +2424,7 @@ var shinyFiles = (function () {
 
     toggleSelectButton(modal);
     setFolderState(modal, data.writable, data.exist, data.allowDirCreate);
-    sortFiles(modal, $(element).data('sort'), $(element).data('sortDir'));
+    sortFiles(modal, $(element).data('sort'), $(element).data('sortDir'), $(element).data('foldersFirst'));
 
     modal.data('currentData', data);
     $(modal).trigger('change');
@@ -2680,6 +2759,58 @@ var shinyFiles = (function () {
     }
   }
 
+  // Type to jump (#99): letters typed in a dialog select the first entry whose
+  // name starts with them, as in File Explorer and Finder. Letters typed within
+  // a second of each other build one prefix; the same letter again moves to the
+  // next entry starting with it. Typing into a text box is left alone.
+  var typeAhead = { text: '', at: 0 };
+  var jumpToTyped = function (event) {
+    var key = event.key;
+    if (!key || key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return false;
+    if ($(event.target).is('input, textarea, select, [contenteditable]')) return false;
+    var modal = $('.sF-modalContainer:visible').last();
+    if (modal.length === 0) return false;
+    var button = $(modal.data('button'));
+
+    var now = Date.now();
+    var text = now - typeAhead.at > 1000 ? '' : typeAhead.text;
+    typeAhead.at = now;
+    var repeat = text.length > 0 && text === key.repeat(text.length);
+    text = (repeat ? key : text + key).toLowerCase();
+    typeAhead.text = repeat ? typeAhead.text + key : text;
+
+    var name = function (row) { return $(row).find('.sF-file-name').first().text().toLowerCase(); };
+    var rows, current;
+    if (button.hasClass('shinyDirectories')) {
+      // The visible tree, top to bottom.
+      rows = modal.find('.sF-dirList .sF-directory').filter(':visible').toArray();
+      current = modal.find('.sF-dirList .sF-directory.selected')[0];
+    } else {
+      rows = modal.find('.sF-fileList').children('.sF-file, .sF-directory').toArray();
+      current = modal.find('.sF-fileList').children('.selected').last()[0];
+    }
+    var matches = rows.filter(function (r) { return name(r).indexOf(text) === 0; });
+    if (matches.length === 0) return true;
+    var target = matches[0];
+    if (repeat && current && matches.indexOf(current) !== -1) {
+      target = matches[(matches.indexOf(current) + 1) % matches.length];
+    }
+
+    if (button.hasClass('shinyDirectories')) {
+      // selectFolder toggles, so leave a folder that is already selected alone.
+      if (!$(target).hasClass('selected')) selectFolder($(target).children('.sF-file-name'), modal, button);
+      target.scrollIntoView({ block: 'nearest' });
+    } else {
+      // One entry, as a plain click selects one.
+      elementSelector({ type: 'keydown' }, target, true, true);
+      toggleSelectButton(modal);
+      if (button.hasClass('shinySave') && $(target).hasClass('sF-file')) {
+        setFilename(modal, $(target).find('.sF-file-name>div').text());
+      }
+    }
+    return true;
+  };
+
   var sF = {};
 
   sF.init = function () {
@@ -2738,6 +2869,10 @@ var shinyFiles = (function () {
 
     // Handle keypresses
     $(document).keydown(function (event) {
+      if (jumpToTyped(event)) {
+        event.preventDefault();
+        return;
+      }
       switch (event.keyCode) {
         case 27:
           // Escape

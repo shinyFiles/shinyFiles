@@ -40,8 +40,9 @@ test_that("Linux returns the root, plus /media mounts when present", {
   expect_equal(unname(as.character(v)), c("/", "/media/stick"))
 })
 
-test_that("Windows reads drive letters and labels from WMIC", {
+test_that("Windows reads drive letters and labels from WMIC when PowerShell can't", {
   localOS("Windows", file.exists = function(...) TRUE,
+          system2 = function(...) stop("powershell not found"),
           system = function(command, ...) {
             if (grepl("VolumeName", command)) c("VolumeName  \r", "System  \r", "  \r", "")
             else c("Caption  \r", "C:  \r", "D:  \r", "")
@@ -51,7 +52,7 @@ test_that("Windows reads drive letters and labels from WMIC", {
   expect_equal(names(v), c("System (C:)", "(D:)"))
 })
 
-test_that("Windows falls back to PowerShell when WMIC is gone", {
+test_that("Windows reads drive letters and labels from PowerShell", {
   localOS("Windows", file.exists = function(...) FALSE,
           system2 = function(command, args, ...) {
             expect_equal(command, "powershell")
@@ -73,18 +74,40 @@ test_that("a drive without a label doesn't shift the labels after it (#171, #200
   expect_equal(names(v), c("System (C:)", "Data (D:)", "(H:)", "USBDRIVE (Z:)"))
 })
 
-test_that("Windows falls back to PowerShell when WMIC fails (#193)", {
+test_that("PowerShell is used even where WMIC exists, so WMIC is never waited on (#199)", {
+  # WMIC can take tens of seconds with a disconnected network drive, and is
+  # removed from current Windows; PowerShell is asked first.
   localOS("Windows", file.exists = function(...) TRUE,
-          system = function(command, ...) structure(character(0), status = 4110L),
+          system = function(command, ...) stop("WMIC should not be run"),
           system2 = function(...) "C:\\|OS")
   expect_equal(getVolumes()(), c("OS (C:)" = "C:/"))
 })
 
-test_that("Windows falls back to PowerShell when WMIC lists nothing", {
+test_that("Windows falls back to WMIC when PowerShell finds nothing", {
   localOS("Windows", file.exists = function(...) TRUE,
-          system = function(command, ...) c("Caption  \r", ""),
-          system2 = function(...) "C:\\|OS")
+          system2 = function(...) character(0),
+          system = function(command, ...) {
+            if (grepl("VolumeName", command)) c("VolumeName  \r", "OS  \r", "")
+            else c("Caption  \r", "C:  \r", "")
+          })
   expect_equal(getVolumes()(), c("OS (C:)" = "C:/"))
+})
+
+test_that("a WMIC that fails is no worse than no WMIC (#193)", {
+  localOS("Windows", file.exists = function(...) TRUE,
+          system2 = function(...) character(0),
+          system = function(command, ...) structure(character(0), status = 4110L))
+  expect_null(getVolumes()())
+})
+
+test_that("Windows falls back to WMIC when PowerShell lists nothing usable", {
+  localOS("Windows", file.exists = function(...) TRUE,
+          system2 = function(...) c("garbage without a separator", ""),
+          system = function(command, ...) {
+            if (grepl("VolumeName", command)) c("VolumeName  \r", "  \r", "")
+            else c("Caption  \r", "D:  \r", "")
+          })
+  expect_equal(getVolumes()(), c("(D:)" = "D:/"))
 })
 
 test_that("Windows returns NULL when PowerShell finds no drives", {

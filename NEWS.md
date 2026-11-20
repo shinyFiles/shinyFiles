@@ -1,5 +1,28 @@
 # shinyFiles (development version)
 
+* A file time the filesystem doesn't record, often the creation time on NFS,
+  is left blank rather than shown as 31 December 1969 or 1 January 1970.
+* Type to jump: typing letters in a dialog selects the first entry whose name
+  starts with them, as in File Explorer and Finder. Letters typed together
+  build one prefix, and the same letter again moves to the next match (#99).
+* On a touch screen, tapping a folder that is already selected opens it, in
+  the file and save dialogs. Touch browsers send no double-click, so folders
+  could not be opened there before. A mouse works as before (#36).
+* In the folder dialog, the content pane scrolls sideways for a long file name
+  and shows it in full instead of cutting it off. The folder tree already
+  scrolled. A new example, `inst/examples/long-names`, shows both with a deep
+  tree of long names (#188).
+* `parseFilePaths(order = "selection")` returns several chosen files in the
+  order the user picked them, rather than the order the dialog listed them
+  (the default, unchanged) (#178).
+* `defaultPath` and `defaultRoot` in `shinyFileChoose()`, `shinyDirChoose()` and
+  `shinyFileSave()` may be functions or reactives, read each time the dialog
+  opens, so one dialog can start where another's choice left off (#175).
+* The sort menu has a new **Folders first** option, which lists folders above
+  files with each group sorted on its own, as file managers do (#197).
+* New `sort` argument for all six buttons and links sets how a dialog sorts
+  when it opens, e.g. `sort = list(by = "Modified", direction = "descending",
+  foldersFirst = TRUE)` (#91, #197).
 * The buttons and links now bring their script and stylesheets as an HTML
   dependency rather than a `singleton()` in `<head>`. A button inside a bslib
   accordion, `shinyjs::hidden()`, `renderUI()` or a Quarto document no longer
@@ -17,6 +40,9 @@
   network drive, no longer shifts the names of the drives after it when WMIC
   is unavailable (#171, #200), and if WMIC is present but fails, PowerShell is
   used instead of raising an error (#193).
+* `getVolumes()` on Windows asks PowerShell first and uses WMIC only as a
+  fallback. WMIC is removed from current Windows, and where it remains it
+  could take tens of seconds with a disconnected network drive (#199).
 * New `strictRoots` argument for `shinyFileChoose()`, `shinyDirChoose()`,
   `shinyFileSave()` and the `parse*Path()` functions. With
   `strictRoots = TRUE`, a root is a hard boundary: symlinks inside it that

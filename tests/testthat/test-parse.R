@@ -123,3 +123,32 @@ test_that("a selection may move around inside the root", {
   y <- parseSavePath(roots, list(name = "new.txt", path = list("", "sub", ".."), root = "first"))
   expect_equal(as.character(y$datapath), file.path(roots[["first"]], "new.txt"))
 })
+
+test_that("order = 'selection' returns files in the order they were picked (#178)", {
+  base <- tempfile("sf-order")
+  dir.create(base)
+  file.create(file.path(base, c("a.txt", "b.txt", "c.txt")))
+  roots <- c(r = base)
+  sel <- list(root = "r", files = list(list("", "a.txt"), list("", "b.txt"), list("", "c.txt")),
+              picked = list(3, 1, 2))
+  expect_equal(parseFilePaths(roots, sel)$name, c("a.txt", "b.txt", "c.txt"))
+  expect_equal(parseFilePaths(roots, sel, order = "selection")$name, c("b.txt", "c.txt", "a.txt"))
+  # The listing order stays the default.
+  expect_equal(parseFilePaths(roots, sel, order = "listing")$name, c("a.txt", "b.txt", "c.txt"))
+  expect_error(parseFilePaths(roots, sel, order = "clicks"), "should be one of")
+})
+
+test_that("order = 'selection' falls back to the listing order without timings", {
+  base <- tempfile("sf-order2")
+  dir.create(base)
+  file.create(file.path(base, c("a.txt", "b.txt")))
+  roots <- c(r = base)
+  sel <- list(root = "r", files = list(list("", "a.txt"), list("", "b.txt")))
+  # An input recorded before 0.9.5, or by a page with an older script.
+  expect_equal(parseFilePaths(roots, sel, order = "selection")$name, c("a.txt", "b.txt"))
+  sel$picked <- list(2)
+  expect_equal(parseFilePaths(roots, sel, order = "selection")$name, c("a.txt", "b.txt"))
+  # Files outside the root are still dropped, whatever the order.
+  sel <- list(root = "r", files = list(list("", "..", "x"), list("", "b.txt")), picked = list(1, 2))
+  expect_equal(parseFilePaths(roots, sel, order = "selection")$name, "b.txt")
+})

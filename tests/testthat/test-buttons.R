@@ -155,3 +155,32 @@ test_that("save buttons carry the filename and file types as JSON", {
     )
   }
 })
+
+test_that("sort sets the dialog's starting sort order (#91, #197)", {
+  for (nm in names(builders)) {
+    x <- builders[[nm]](sort = list(by = "Modified", direction = "descending", foldersFirst = TRUE))
+    expect_equal(attrOf(x, "data-sort"), "Modified", label = nm)
+    expect_equal(attrOf(x, "data-sort-dir"), "descending", label = nm)
+    expect_equal(attrOf(x, "data-folders-first"), "true", label = nm)
+    # Nothing is written when sort is not given, so the dialog keeps its defaults.
+    y <- builders[[nm]]()
+    expect_null(attrOf(y, "data-sort"), label = nm)
+    expect_null(attrOf(y, "data-folders-first"), label = nm)
+  }
+})
+
+test_that("sort may give only some settings, as a list or a named vector", {
+  x <- shinyDirButton("d", "L", "T", sort = list(foldersFirst = FALSE))
+  expect_equal(attrOf(x, "data-folders-first"), "false")
+  expect_null(attrOf(x, "data-sort"))
+  y <- shinyDirButton("d", "L", "T", sort = c(by = "Size"))
+  expect_equal(attrOf(y, "data-sort"), "Size")
+})
+
+test_that("a sort setting that isn't known is an error", {
+  expect_error(shinyDirButton("d", "L", "T", sort = list(by = "Colour")), "should be one of")
+  expect_error(shinyDirButton("d", "L", "T", sort = list(direction = "up")), "should be one of")
+  expect_error(shinyDirButton("d", "L", "T", sort = list(order = "Name")), "takes `by`")
+  expect_error(shinyDirButton("d", "L", "T", sort = list("Name")), "takes `by`")
+  expect_error(shinyDirButton("d", "L", "T", sort = list(foldersFirst = "yes")), "TRUE or FALSE")
+})

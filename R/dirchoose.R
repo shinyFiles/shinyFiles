@@ -535,9 +535,10 @@ shinyDirChoose <- function(
       # rather than straight under the root (#110).
       currentRoots <- list(...)$roots
       if (inherits(currentRoots, "function")) currentRoots <- currentRoots()
-      known <- if (isTRUE(defaultRoot %in% names(currentRoots))) defaultRoot else NULL
+      startRoot <- currentValue(defaultRoot)
+      known <- if (isTRUE(startRoot %in% names(currentRoots))) startRoot else NULL
       # defaultPath belongs to defaultRoot, so it isn't tried in another root.
-      start <- if (is.null(defaultRoot) || !is.null(known)) defaultFolder(currentRoots, known, defaultPath)
+      start <- if (is.null(startRoot) || !is.null(known)) defaultFolder(currentRoots, known, currentValue(defaultPath))
       if (is.null(start)) {
         dir <- list(tree = list(name = "", expanded = TRUE), root = known)
         files <- list(dir = NA, root = NULL)
@@ -626,7 +627,7 @@ shinyDirChoose <- function(
 #'
 shinyDirButton <- function(
   id, label, title, buttonType="default", 
-  class=NULL, icon=NULL, style=NULL, ...
+  class=NULL, icon=NULL, style=NULL, sort=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
   attachDependencies(
@@ -638,6 +639,7 @@ shinyDirButton <- function(
       "data-title" = title,
       "data-val" = value,
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()
@@ -651,7 +653,7 @@ shinyDirButton <- function(
 #'
 #' @export
 #'
-shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ...) {
+shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, sort=NULL, ...) {
   value <- restoreInput(id = id, default = NULL)
   attachDependencies(
     tags$a(
@@ -662,6 +664,7 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
       "data-title" = title,
       "data-val" = value,
       list(icon, label),
+      !!!sortAttributes(sort),
       ...
     ),
     shinyFilesDependency()

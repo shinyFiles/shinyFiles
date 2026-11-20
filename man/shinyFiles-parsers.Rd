@@ -7,7 +7,12 @@
 \alias{parseSavePath}
 \title{Convert the output of a selection to platform specific path(s)}
 \usage{
-parseFilePaths(roots, selection, strictRoots = FALSE)
+parseFilePaths(
+  roots,
+  selection,
+  strictRoots = FALSE,
+  order = c("listing", "selection")
+)
 
 parseDirPath(roots, selection, strictRoots = FALSE)
 
@@ -22,6 +27,11 @@ call in \code{shinyServer()}}
 \item{strictRoots}{If \code{TRUE}, a selection that is only inside the root by
 way of a symlink leading out of it counts as nothing chosen. Use the value
 given to \code{shinyFileChoose()}, \code{shinyDirChoose()} or \code{shinyFileSave()}.}
+
+\item{order}{For several files chosen at once: \code{"listing"} (the default)
+returns them in the order the dialog listed them; \code{"selection"} in the
+order the user picked them. A Shift-click range counts as picked from the
+row the range started at towards the row clicked.}
 }
 \value{
 A data frame matching the format of \code{\link[shiny:fileInput]{shiny::fileInput()}}
