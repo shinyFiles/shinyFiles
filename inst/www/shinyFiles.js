@@ -2756,6 +2756,58 @@ var shinyFiles = (function () {
     }
   }
 
+  // Type to jump (#99): letters typed in a dialog select the first entry whose
+  // name starts with them, as in File Explorer and Finder. Letters typed within
+  // a second of each other build one prefix; the same letter again moves to the
+  // next entry starting with it. Typing into a text box is left alone.
+  var typeAhead = { text: '', at: 0 };
+  var jumpToTyped = function (event) {
+    var key = event.key;
+    if (!key || key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return false;
+    if ($(event.target).is('input, textarea, select, [contenteditable]')) return false;
+    var modal = $('.sF-modalContainer:visible').last();
+    if (modal.length === 0) return false;
+    var button = $(modal.data('button'));
+
+    var now = Date.now();
+    var text = now - typeAhead.at > 1000 ? '' : typeAhead.text;
+    typeAhead.at = now;
+    var repeat = text.length > 0 && text === key.repeat(text.length);
+    text = (repeat ? key : text + key).toLowerCase();
+    typeAhead.text = repeat ? typeAhead.text + key : text;
+
+    var name = function (row) { return $(row).find('.sF-file-name').first().text().toLowerCase(); };
+    var rows, current;
+    if (button.hasClass('shinyDirectories')) {
+      // The visible tree, top to bottom.
+      rows = modal.find('.sF-dirList .sF-directory').filter(':visible').toArray();
+      current = modal.find('.sF-dirList .sF-directory.selected')[0];
+    } else {
+      rows = modal.find('.sF-fileList').children('.sF-file, .sF-directory').toArray();
+      current = modal.find('.sF-fileList').children('.selected').last()[0];
+    }
+    var matches = rows.filter(function (r) { return name(r).indexOf(text) === 0; });
+    if (matches.length === 0) return true;
+    var target = matches[0];
+    if (repeat && current && matches.indexOf(current) !== -1) {
+      target = matches[(matches.indexOf(current) + 1) % matches.length];
+    }
+
+    if (button.hasClass('shinyDirectories')) {
+      // selectFolder toggles, so leave a folder that is already selected alone.
+      if (!$(target).hasClass('selected')) selectFolder($(target).children('.sF-file-name'), modal, button);
+      target.scrollIntoView({ block: 'nearest' });
+    } else {
+      // One entry, as a plain click selects one.
+      elementSelector({ type: 'keydown' }, target, true, true);
+      toggleSelectButton(modal);
+      if (button.hasClass('shinySave') && $(target).hasClass('sF-file')) {
+        setFilename(modal, $(target).find('.sF-file-name>div').text());
+      }
+    }
+    return true;
+  };
+
   var sF = {};
 
   sF.init = function () {
@@ -2814,6 +2866,10 @@ var shinyFiles = (function () {
 
     // Handle keypresses
     $(document).keydown(function (event) {
+      if (jumpToTyped(event)) {
+        event.preventDefault();
+        return;
+      }
       switch (event.keyCode) {
         case 27:
           // Escape

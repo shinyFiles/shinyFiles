@@ -1,5 +1,8 @@
 # shinyFiles (development version)
 
+* Type to jump: typing letters in a dialog selects the first entry whose name
+  starts with them, as in File Explorer and Finder. Letters typed together
+  build one prefix, and the same letter again moves to the next match (#99).
 * On a touch screen, tapping a folder that is already selected opens it, in
   the file and save dialogs. Touch browsers send no double-click, so folders
   could not be opened there before. A mouse works as before (#36).
