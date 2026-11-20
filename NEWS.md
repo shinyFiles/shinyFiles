@@ -1,5 +1,8 @@
 # shinyFiles (development version)
 
+* `shinyFilesExample()` takes the name of an example: `"showcase"` (the
+  default, as before) or `"long-names"`. The examples now live together in
+  `inst/examples/`.
 * A file time the filesystem doesn't record, often the creation time on NFS,
   is left blank rather than shown as 31 December 1969 or 1 January 1970.
 * Type to jump: typing letters in a dialog selects the first entry whose name
@@ -10,7 +13,7 @@
   could not be opened there before. A mouse works as before (#36).
 * In the folder dialog, the content pane scrolls sideways for a long file name
   and shows it in full instead of cutting it off. The folder tree already
-  scrolled. A new example, `inst/examples/long-names`, shows both with a deep
+  scrolled. A new example, `shinyFilesExample("long-names")`, shows both with a deep
   tree of long names (#188).
 * `parseFilePaths(order = "selection")` returns several chosen files in the
   order the user picked them, rather than the order the dialog listed them
