@@ -1,5 +1,8 @@
 # shinyFiles (development version)
 
+* On a touch screen, tapping a folder that is already selected opens it, in
+  the file and save dialogs. Touch browsers send no double-click, so folders
+  could not be opened there before. A mouse works as before (#36).
 * In the folder dialog, the content pane scrolls sideways for a long file name
   and shows it in full instead of cutting it off. The folder tree already
   scrolled. A new example, `inst/examples/long-names`, shows both with a deep

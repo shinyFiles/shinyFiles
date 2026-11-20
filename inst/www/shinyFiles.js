@@ -9,6 +9,17 @@ var shinyFiles = (function () {
     $(element).data('sF-picked', selectionCounter);
   };
 
+  // Touch screens have no double-click (iOS uses a double tap to zoom), so a
+  // tap on a folder that is already selected opens it (#36). Whether a click
+  // came from a finger is read from the pointer event that started it.
+  var lastPointerType = 'mouse';
+  $(document).on('pointerdown', function (e) {
+    lastPointerType = e.originalEvent ? e.originalEvent.pointerType : 'mouse';
+  });
+  var tappedSelectedFolder = function (element) {
+    return lastPointerType === 'touch' && $(element).hasClass('sF-directory') && $(element).hasClass('selected');
+  };
+
   var elementSelector = function (event, element, single, forceSelect) {
     var parent = $(element).parent();
     var lastSelectedElement = parent.data('lastElement');
@@ -1165,6 +1176,10 @@ var shinyFiles = (function () {
         selectFiles(button, modal);
       })
       .on('click', '.sF-file, .sF-directory', function (event) {
+        if (tappedSelectedFolder(this)) {
+          openDir(button, modal, this);
+          return false;
+        }
         var single = $(button).data('selecttype') == 'single';
         elementSelector(event, this, single, false);
         toggleSelectButton(modal);
@@ -1728,6 +1743,10 @@ var shinyFiles = (function () {
         toggleSelectButton(modal);
       })
       .on('click', '.sF-file, .sF-directory', function (event) {
+        if (tappedSelectedFolder(this)) {
+          openDir(button, modal, this);
+          return false;
+        }
         elementSelector(event, this, true, false);
         if (!$(this).hasClass('sF-directory')) {
           var name = $(this).find('.sF-file-name>div').text();
