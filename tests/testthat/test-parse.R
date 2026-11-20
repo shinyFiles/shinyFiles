@@ -144,7 +144,7 @@ test_that("order = 'selection' falls back to the listing order without timings",
   file.create(file.path(base, c("a.txt", "b.txt")))
   roots <- c(r = base)
   sel <- list(root = "r", files = list(list("", "a.txt"), list("", "b.txt")))
-  # An input recorded before 0.9.5, or by a page with an older script.
+  # An input recorded before 1.0.0, or by a page with an older script.
   expect_equal(parseFilePaths(roots, sel, order = "selection")$name, c("a.txt", "b.txt"))
   sel$picked <- list(2)
   expect_equal(parseFilePaths(roots, sel, order = "selection")$name, c("a.txt", "b.txt"))
