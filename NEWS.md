@@ -1,5 +1,9 @@
 # shinyFiles (development version)
 
+* In the folder dialog, the content pane scrolls sideways for a long file name
+  and shows it in full instead of cutting it off. The folder tree already
+  scrolled. A new example, `inst/examples/long-names`, shows both with a deep
+  tree of long names (#188).
 * `parseFilePaths(order = "selection")` returns several chosen files in the
   order the user picked them, rather than the order the dialog listed them
   (the default, unchanged) (#178).

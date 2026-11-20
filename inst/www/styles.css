@@ -450,8 +450,9 @@
 */
 .sF-dirContent {
   display: table;
-  table-layout: fixed;
-  width: 100%;
+  /* At least the pane's width, wider for a long name, so the pane scrolls
+     sideways instead of cutting the name off (#188). */
+  min-width: 100%;
 }
 .sF-dirContent>div {
   display: table-row;
@@ -470,10 +471,7 @@
   width: auto;
 }
 .sF-dirContent>div>div:nth-child(2)>div {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  width: 100%;
 }
 .sF-dirContent>div>div:last-child {
   text-align: right;
