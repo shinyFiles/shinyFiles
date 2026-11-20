@@ -49,11 +49,21 @@ test_that(".onLoad serves the package's www folder under sF/", {
   expect_true(file.exists(file.path(paths[["sF"]], "shinyFiles.js")))
 })
 
-test_that("shinyFilesExample runs the bundled example in showcase mode", {
+test_that("shinyFilesExample runs the showcase example in showcase mode", {
   called <- NULL
   local_mocked_bindings(runApp = function(...) called <<- list(...), .package = "shiny")
   shinyFilesExample()
-  expect_equal(normalizePath(called[[1]]), normalizePath(system.file("example", package = "shinyFiles")))
+  expect_equal(normalizePath(called[[1]]), normalizePath(system.file("examples", "showcase", package = "shinyFiles")))
   expect_equal(called$display.mode, "showcase")
   expect_true(all(file.exists(file.path(called[[1]], c("ui.R", "server.R")))))
+})
+
+test_that("shinyFilesExample runs the long-names example on request", {
+  called <- NULL
+  local_mocked_bindings(runApp = function(...) called <<- list(...), .package = "shiny")
+  shinyFilesExample("long-names")
+  expect_equal(normalizePath(called[[1]]), normalizePath(system.file("examples", "long-names", package = "shinyFiles")))
+  expect_null(called$display.mode)
+  expect_true(file.exists(file.path(called[[1]], "app.R")))
+  expect_error(shinyFilesExample("nope"), "should be one of")
 })

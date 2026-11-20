@@ -1,7 +1,7 @@
 # Long names and deep folders in the folder dialog (#188)
 #
 # Run it with:
-#   shiny::runApp(system.file("examples", "long-names", package = "shinyFiles"))
+#   shinyFiles::shinyFilesExample("long-names")
 # or, from a checkout of the package:
 #   shiny::runApp("inst/examples/long-names")
 #

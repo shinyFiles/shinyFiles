@@ -104,14 +104,22 @@ currentValue <- function(x) if (is.function(x)) x() else x
 #'
 .is_not <- function(x) length(x) == 0 || (length(x) == 1 && is.na(x))
 
-#' Run a simple example app using the shinyFiles functionality
+#' Run an example app using the shinyFiles functionality
 #'
-#' When the function is invoked a shiny app is started showing a very simple
-#' setup using shinyFiles. A button summons the dialog box allowing the user to
-#' navigate the R installation directory. To showcase the restrictions parameter
-#' the base package location has been hidden, and is thus inaccessible. A panel
-#' besides the button shows how the user selection is made accessible to the
-#' server after parsing with [parseFilePaths()].
+#' Starts one of the example apps that come with shinyFiles.
+#'
+#' * `"showcase"` (the default) has a file, folder and save button side by
+#'   side, with what each sends back to the server shown next to it, after
+#'   parsing with [parseFilePaths()], [parseDirPath()] and [parseSavePath()].
+#'   The buttons open the home directory, the R installation and the other
+#'   volumes; to show the `restrictions` argument, the base package's folder
+#'   is hidden. It runs in showcase mode, so its code is shown below it.
+#' * `"long-names"` builds a deep tree of folders and files with long names in
+#'   a temporary folder, and lists what to check in the folder dialog.
+#'
+#' The examples are in `system.file("examples", package = "shinyFiles")`.
+#'
+#' @param example Which example to run: `"showcase"` or `"long-names"`.
 #'
 #' @family shinyFiles
 #'
@@ -119,8 +127,14 @@ currentValue <- function(x) if (is.function(x)) x() else x
 #'
 #' @export
 #'
-shinyFilesExample <- function() {
-  shiny::runApp(system.file("example", package = "shinyFiles", mustWork = T), display.mode = "showcase")
+shinyFilesExample <- function(example = c("showcase", "long-names")) {
+  example <- match.arg(example)
+  dir <- system.file("examples", example, package = "shinyFiles", mustWork = TRUE)
+  if (example == "showcase") {
+    shiny::runApp(dir, display.mode = "showcase")
+  } else {
+    shiny::runApp(dir)
+  }
 }
 #' Get a list of available volumes
 #'

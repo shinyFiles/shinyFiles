@@ -2,17 +2,29 @@
 % Please edit documentation in R/aaa.R
 \name{shinyFilesExample}
 \alias{shinyFilesExample}
-\title{Run a simple example app using the shinyFiles functionality}
+\title{Run an example app using the shinyFiles functionality}
 \usage{
-shinyFilesExample()
+shinyFilesExample(example = c("showcase", "long-names"))
+}
+\arguments{
+\item{example}{Which example to run: \code{"showcase"} or \code{"long-names"}.}
 }
 \description{
-When the function is invoked a shiny app is started showing a very simple
-setup using shinyFiles. A button summons the dialog box allowing the user to
-navigate the R installation directory. To showcase the restrictions parameter
-the base package location has been hidden, and is thus inaccessible. A panel
-besides the button shows how the user selection is made accessible to the
-server after parsing with \code{\link[=parseFilePaths]{parseFilePaths()}}.
+Starts one of the example apps that come with shinyFiles.
+}
+\details{
+\itemize{
+\item \code{"showcase"} (the default) has a file, folder and save button side by
+side, with what each sends back to the server shown next to it, after
+parsing with \code{\link[=parseFilePaths]{parseFilePaths()}}, \code{\link[=parseDirPath]{parseDirPath()}} and \code{\link[=parseSavePath]{parseSavePath()}}.
+The buttons open the home directory, the R installation and the other
+volumes; to show the \code{restrictions} argument, the base package's folder
+is hidden. It runs in showcase mode, so its code is shown below it.
+\item \code{"long-names"} builds a deep tree of folders and files with long names in
+a temporary folder, and lists what to check in the folder dialog.
+}
+
+The examples are in \code{system.file("examples", package = "shinyFiles")}.
 }
 \seealso{
 Other shinyFiles: 
