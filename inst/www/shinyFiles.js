@@ -603,6 +603,9 @@ var shinyFiles = (function () {
   };
 
   var formatDate = function (date) {
+    // A time the filesystem doesn't record (often the creation time, on NFS
+    // and some others) arrives as 0; show nothing rather than 1 Jan 1970.
+    if (!date || isNaN(date.getTime()) || date.getTime() === 0) return '';
     var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

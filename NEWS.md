@@ -1,5 +1,7 @@
 # shinyFiles (development version)
 
+* A file time the filesystem doesn't record, often the creation time on NFS,
+  is left blank rather than shown as 31 December 1969 or 1 January 1970.
 * Type to jump: typing letters in a dialog selects the first entry whose name
   starts with them, as in File Explorer and Finder. Letters typed together
   build one prefix, and the same letter again moves to the next match (#99).

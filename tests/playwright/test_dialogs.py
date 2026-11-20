@@ -295,3 +295,21 @@ def test_deselecting_and_reselecting_moves_a_file_to_the_end(app: Page):
     _, picked = _pick(app, [("a.txt", None), ("b.csv", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"]),
                             ("c.R", ["ControlOrMeta"]), ("a.txt", ["ControlOrMeta"])])
     assert picked == ["b.csv", "c.R", "a.txt"]
+
+
+
+def test_an_unknown_creation_time_is_left_blank(app: Page):
+    # Some filesystems (NFS among them) record no creation time; fs reports it
+    # as 0, which used to be shown as Dec 31, 1969 or Jan 1, 1970. Where the
+    # filesystem does record it, it must still be shown.
+    d = Dialog(app, "file").open()
+    rows = d.js("""return m.find('.sF-fileList .sF-file').map(function () {
+      return [[$(this).data('sF-file').cTime.getTime(), $(this).find('.sF-file-cTime').text(),
+               $(this).find('.sF-file-mTime').text()]]; }).toArray();""")
+    assert rows, rows
+    for when, created, modified in rows:
+        assert modified != ""
+        if when == 0:
+            assert created == "", (when, created)
+        else:
+            assert created != "" and "1969" not in created and "1970" not in created, (when, created)
