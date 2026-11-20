@@ -267,10 +267,18 @@ def test_an_existing_folder_name_opens_that_folder_and_says_it_exists(app: Page)
 
 def _pick(app: Page, steps):
     d = Dialog(app, "file").open()
+    # The outputs keep the last choice, so wait for these to change.
+    before = app.evaluate("() => [$('#fileOut').text(), $('#filePicked').text()]")
     for name, mods in steps:
         d.click_row(name, mods)
     d.find("#sF-selectButton").click()
     d.expect_closed()
+    # The outputs are redrawn by the server after the dialog closes.
+    app.wait_for_function(
+        "b => { var o = $('#fileOut').text(), p = $('#filePicked').text();"
+        " return o !== '' && p !== '' && (o !== b[0] || p !== b[1]) && !$('html').hasClass('shiny-busy'); }",
+        arg=before,
+    )
     listing = [p.rsplit("/", 1)[-1] for p in app.locator("#fileOut").inner_text().split("|")]
     picked = app.locator("#filePicked").inner_text().split("|")
     return listing, picked
