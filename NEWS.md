@@ -1,4 +1,4 @@
-# shinyFiles (development version)
+# shinyFiles 1.0.0
 
 * `shinyFilesExample()` takes the name of an example: `"showcase"` (the
   default, as before) or `"long-names"`. The examples now live together in
