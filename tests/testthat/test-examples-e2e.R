@@ -66,31 +66,30 @@ test_that("the showcase opens all three dialogs with the roots it describes", {
 
 test_that("the showcase hides the base package's folder, as it says", {
   skipUnlessBrowser()
-  app <- newApp(localExample("showcase"), "example-showcase-restrict")
+  # Walking the real R installation is slow where many packages are installed,
+  # so the example's roots are pointed at a small stand-in with a "base"
+  # folder at the path its restriction names. Everything else is as shipped.
+  stand <- file.path(tempfile("sf-rhome"), "library")
+  dir.create(file.path(stand, "base"), recursive = TRUE)
+  dir.create(file.path(stand, "stats"))
+  stand <- normalizePath(stand, winslash = "/")
+  dir <- localExample("showcase", roots = sprintf('c(Home = %s)', deparse(dirname(stand))))
+  server <- file.path(dir, "server.R")
+  code <- readLines(server)
+  expect_equal(sum(grepl('restrictions = system.file(package = "base")', code, fixed = TRUE)), 2,
+               label = "the folder and save dialogs restrict base")
+  writeLines(gsub('system.file(package = "base")', deparse(file.path(stand, "base")), code, fixed = TRUE), server)
+
+  app <- newApp(dir, "example-showcase-restrict")
   on.exit(app$stop(), add = TRUE)
   openDialogFor(app, "directory")
-  rootIndex <- app$get_js(sprintf(
-    "%s.find('select.sF-breadcrumps option').filter(function(){ return $(this).text().trim().indexOf('R Installation') !== -1; }).val()",
-    topModal
-  ))
-  app$run_js(sprintf("%s.find('select.sF-breadcrumps').val(%s).trigger('change');", topModal, jsonlite::toJSON(rootIndex, auto_unbox = TRUE)))
-  app$wait_for_idle()
-  base <- system.file(package = "base")
-  rel <- sub(paste0("^", normalizePath(R.home(), winslash = "/"), "/?"), "", normalizePath(base, winslash = "/"))
-  parts <- strsplit(rel, "/")[[1]]
-  skip_if(length(parts) < 2, "base is not under R.home() here")
-  # Open the folder holding base (e.g. library/) and check base isn't listed.
-  for (p in parts[-length(parts)]) {
-    app$run_js(sprintf(
-      "%s.find('.sF-dirList .sF-directory').filter(function(){ return $(this).children('.sF-file-name').text() === %s; }).last().children('.sF-expander').children('span').click();",
-      topModal, jsonlite::toJSON(p, auto_unbox = TRUE)
-    ))
-    app$wait_for_idle()
-  }
+  node <- sprintf("%s.find('.sF-dirList .sF-directory').filter(function(){ return $(this).children('.sF-file-name').text() === 'library'; }).last()", topModal)
+  app$wait_for_js(sprintf("%s.length > 0", node), timeout = 20000)
+  app$run_js(sprintf("%s.children('.sF-expander').children('span').click();", node))
+  app$wait_for_js(sprintf("%s.children('.sF-content').children('.sF-directory').length > 0", node), timeout = 20000)
   shown <- unlist(app$get_js(sprintf("%s.find('.sF-dirList .sF-file-name').map(function(){ return $(this).text(); }).toArray()", topModal)))
-  expect_true(any(shown == parts[length(parts) - 1]) || length(parts) == 1)
+  expect_true("stats" %in% shown, label = "other packages are listed")
   expect_false("base" %in% shown)
-  expect_true("stats" %in% shown || "utils" %in% shown, label = "other packages are listed")
   expectNoAppErrors(app)
 })
 
@@ -133,17 +132,21 @@ test_that("the long-names example builds its tree and reaches the deepest folder
   app <- newApp(localExample("long-names"), "example-long-names")
   on.exit(app$stop(), add = TRUE)
   openDialogFor(app, "dir")
-  for (i in 1:15) {
+  # 15 levels, or fewer on Windows where paths are capped; the page says how many.
+  levels <- as.integer(sub(".*down to level (\\d+).*", "\\1", app$get_js("document.body.innerText")))
+  expect_true(levels >= 3 && levels <= 15, label = "the example builds a deep tree")
+  for (i in seq_len(levels)) {
     app$run_js(sprintf("%s.find('.sF-dirList .sF-directory.closed').filter(function(){ return /^level_/.test($(this).children('.sF-file-name').text()); }).last().children('.sF-expander').children('span').click();", topModal))
     app$wait_for_idle()
   }
-  app$run_js(sprintf("%s.find('.sF-dirList .sF-file-name').filter(function(){ return /^level_15_/.test($(this).text()); }).trigger('click');", topModal))
+  deepestName <- sprintf("level_%02d_", levels)
+  app$run_js(sprintf("%s.find('.sF-dirList .sF-file-name').filter(function(){ return $(this).text().indexOf(%s) === 0; }).trigger('click');", topModal, jsonlite::toJSON(deepestName, auto_unbox = TRUE)))
   app$wait_for_idle()
 
   # What the page asks you to check.
   m <- app$get_js(sprintf("(function(){
     var m = %s, tree = m.find('.sF-dirList').parent()[0], content = m.find('.sF-dirContent').parent()[0];
-    var name = m.find('.sF-dirContent > div > div:nth-child(2) > div').filter(function(){ return /^file_at_level_15/.test($(this).text()); })[0];
+    var name = m.find('.sF-dirContent > div > div:nth-child(2) > div').filter(function(){ return /^file_at_level_/.test($(this).text()); })[0];
     var rows = m.find('.sF-dirList .sF-directory > .sF-file-name').toArray().map(function(e){ return Math.round(e.getBoundingClientRect().height); });
     return { treeScrolls: tree.scrollWidth > tree.clientWidth, contentScrolls: content.scrollWidth > content.clientWidth,
              nameClipped: !!name && name.scrollWidth > name.clientWidth + 1, tallest: Math.max.apply(null, rows) };
@@ -155,7 +158,7 @@ test_that("the long-names example builds its tree and reaches the deepest folder
 
   app$run_js(sprintf("%s.find('#sF-selectButton').click();", topModal))
   app$wait_for_idle()
-  expect_match(app$get_value(output = "picked"), "level_15_", label = "4. the deepest folder is reported")
+  expect_match(app$get_value(output = "picked"), deepestName, fixed = TRUE, label = "4. the deepest folder is reported")
   expect_match(app$get_value(output = "summary"), "Deepest folder picked: yes")
   expectNoAppErrors(app)
 })

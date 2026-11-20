@@ -6,8 +6,9 @@
 #   shiny::runApp("inst/examples/long-names")
 #
 # It builds a sample tree in a temporary folder: 15 levels deep, with folder and
-# file names of 40 to 70 characters. Open the dialog, expand the tree to the
-# bottom, and pick the deepest folder.
+# file names of 40 to 70 characters (fewer levels on Windows, where a path is
+# limited to 260 characters unless long paths are turned on). Open the dialog,
+# expand the tree to the bottom, and pick the deepest folder.
 #
 # What to check (each one is also listed in the app):
 #   1. The folder tree scrolls sideways once the tree is wider than its pane,
@@ -30,14 +31,20 @@ unlink(base, recursive = TRUE)
 names_at <- function(i) {
   sprintf("level_%02d_%s", i, substr(strrep("a_rather_long_folder_name_", 3), 1, 30 + 2 * i))
 }
+file_at <- function(i) sprintf("file_at_level_%02d_with_an_unusually_long_name_for_the_content_pane.txt", i)
+# Windows paths are capped at 260 characters, so stop a level early rather than
+# fail to start.
+maxPath <- if (.Platform$OS.type == "windows") 250 else Inf
 deepest <- base
+levels <- 0
 for (i in seq_len(15)) {
-  deepest <- file.path(deepest, names_at(i))
+  nextDir <- file.path(deepest, names_at(i))
+  if (nchar(file.path(nextDir, file_at(i))) > maxPath) break
+  deepest <- nextDir
   dir.create(deepest, recursive = TRUE)
   dir.create(file.path(deepest, sprintf("sibling_%02d", i)))
-  writeLines("sample", file.path(deepest, sprintf(
-    "file_at_level_%02d_with_an_unusually_long_name_for_the_content_pane.txt", i
-  )))
+  writeLines("sample", file.path(deepest, file_at(i)))
+  levels <- i
 }
 roots <- c(sample = base)
 
@@ -50,7 +57,7 @@ checks <- c(
 
 ui <- fluidPage(
   titlePanel("shinyFiles: long names and deep folders"),
-  p("Open the dialog, expand the tree down to level 15 with the arrows, click the deepest folder, and press Select."),
+  p(sprintf("Open the dialog, expand the tree down to level %d with the arrows, click the deepest folder, and press Select.", levels)),
   shinyDirButton("dir", "Open the folder dialog", "Long names and deep folders"),
   h4("Check each of these"),
   tags$ol(lapply(seq_along(checks), function(i) {
@@ -71,7 +78,7 @@ server <- function(input, output, session) {
       a <- input[[paste0("check", i)]]
       sprintf("%-7s %d. %s", if (is.null(a) || a == "") "-" else toupper(a), i, checks[[i]])
     }, "")
-    reachedBottom <- length(picked()) == 1 && grepl(names_at(15), picked(), fixed = TRUE)
+    reachedBottom <- length(picked()) == 1 && grepl(names_at(levels), picked(), fixed = TRUE)
     paste(c(
       sprintf("shinyFiles %s, %s", utils::packageVersion("shinyFiles"), R.version.string),
       sprintf("Deepest folder picked: %s", if (reachedBottom) "yes" else "no"),
