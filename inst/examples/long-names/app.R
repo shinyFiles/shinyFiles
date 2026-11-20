@@ -6,9 +6,11 @@
 #   shiny::runApp("inst/examples/long-names")
 #
 # It builds a sample tree in a temporary folder: 15 levels deep, with folder and
-# file names of 40 to 70 characters (fewer levels on Windows, where a path is
-# limited to 260 characters unless long paths are turned on). Open the dialog,
-# expand the tree to the bottom, and pick the deepest folder.
+# file names of 40 to 70 characters. Windows limits a path to 260 characters
+# unless long paths are turned on, so there the folder names are shorter and
+# the tree stops when a path would pass the limit; the tree may then fit its
+# pane without scrolling, but the long file name still tests the content pane.
+# Open the dialog, expand the tree to the bottom, and pick the deepest folder.
 #
 # What to check (each one is also listed in the app):
 #   1. The folder tree scrolls sideways once the tree is wider than its pane,
@@ -28,13 +30,14 @@ if (dir.exists("../../../R") && file.exists("../../../DESCRIPTION")) {
 
 base <- file.path(tempdir(), "shinyFiles-long-names")
 unlink(base, recursive = TRUE)
+onWindows <- .Platform$OS.type == "windows"
 names_at <- function(i) {
-  sprintf("level_%02d_%s", i, substr(strrep("a_rather_long_folder_name_", 3), 1, 30 + 2 * i))
+  # Short on Windows, so more levels fit under its path limit.
+  pad <- if (onWindows) 3 else 30 + 2 * i
+  sprintf("level_%02d_%s", i, substr(strrep("a_rather_long_folder_name_", 3), 1, pad))
 }
 file_at <- function(i) sprintf("file_at_level_%02d_with_an_unusually_long_name_for_the_content_pane.txt", i)
-# Windows paths are capped at 260 characters, so stop a level early rather than
-# fail to start.
-maxPath <- if (.Platform$OS.type == "windows") 250 else Inf
+maxPath <- if (onWindows) 250 else Inf
 deepest <- base
 levels <- 0
 for (i in seq_len(15)) {

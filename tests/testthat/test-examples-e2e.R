@@ -134,7 +134,7 @@ test_that("the long-names example builds its tree and reaches the deepest folder
   openDialogFor(app, "dir")
   # 15 levels, or fewer on Windows where paths are capped; the page says how many.
   levels <- as.integer(sub(".*down to level (\\d+).*", "\\1", app$get_js("document.body.innerText")))
-  expect_true(levels >= 3 && levels <= 15, label = "the example builds a deep tree")
+  expect_true(levels >= 5 && levels <= 15, label = "the example builds a deep tree")
   for (i in seq_len(levels)) {
     app$run_js(sprintf("%s.find('.sF-dirList .sF-directory.closed').filter(function(){ return /^level_/.test($(this).children('.sF-file-name').text()); }).last().children('.sF-expander').children('span').click();", topModal))
     app$wait_for_idle()
@@ -151,7 +151,8 @@ test_that("the long-names example builds its tree and reaches the deepest folder
     return { treeScrolls: tree.scrollWidth > tree.clientWidth, contentScrolls: content.scrollWidth > content.clientWidth,
              nameClipped: !!name && name.scrollWidth > name.clientWidth + 1, tallest: Math.max.apply(null, rows) };
   })()", topModal))
-  expect_true(m$treeScrolls, label = "1. the tree scrolls sideways")
+  # On Windows the path limit keeps the tree narrow enough to fit its pane.
+  if (.Platform$OS.type != "windows") expect_true(m$treeScrolls, label = "1. the tree scrolls sideways")
   expect_true(m$contentScrolls, label = "2. the content pane scrolls sideways")
   expect_false(m$nameClipped, label = "2. the long file name is shown in full")
   expect_lt(m$tallest, 30, label = "3. rows keep their height")
