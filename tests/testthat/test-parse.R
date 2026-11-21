@@ -152,3 +152,17 @@ test_that("order = 'selection' falls back to the listing order without timings",
   sel <- list(root = "r", files = list(list("", "..", "x"), list("", "b.txt")), picked = list(1, 2))
   expect_equal(parseFilePaths(roots, sel, order = "selection")$name, "b.txt")
 })
+
+test_that("datapath is a plain character vector, as from fileInput()", {
+  # 0.9.4 returned character here, and packages compare it with identical().
+  base <- tempfile("sf-chr")
+  dir.create(base)
+  file.create(file.path(base, c("a.txt", "b.txt")))
+  roots <- c(r = base)
+  sel <- list(root = "r", files = list(list("", "a.txt"), list("", "b.txt")))
+  p <- parseFilePaths(roots, sel)
+  expect_identical(class(p$datapath), "character")
+  expect_identical(p$datapath, file.path(normalizePath(base, winslash = "/"), c("a.txt", "b.txt")))
+  expect_identical(class(parseFilePaths(roots, sel, order = "selection")$datapath), "character")
+  expect_identical(class(parseFilePaths(roots, list(root = "r", files = list()))$datapath), "character")
+})
