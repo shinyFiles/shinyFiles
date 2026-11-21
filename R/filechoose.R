@@ -858,6 +858,8 @@ parseFilePaths <- function(roots, selection, strictRoots = FALSE, order = c("lis
     if (length(files) == 0) {
       return(tibble(name = character(0), size = numeric(0), type = character(0), datapath = character(0)))
     }
-    tibble(name = path_file(files), size = as.numeric(file_info(files)$size), type = "", datapath = files)
+    # Plain character, as fileInput() gives and as 0.9.4 returned.
+    tibble(name = as.character(path_file(files)), size = as.numeric(file_info(files)$size),
+           type = "", datapath = as.character(files))
   }
 }
